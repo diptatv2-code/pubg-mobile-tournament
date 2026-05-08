@@ -1,48 +1,45 @@
-import { RegisterForm } from "./RegisterForm";
-import { Crosshair } from "lucide-react";
-import Link from "next/link";
-
-export const metadata = { title: "Create Account — PUBG Mobile Tournament" };
+'use client'
+import Link from 'next/link'
+import { useState } from 'react'
 
 export default function RegisterPage() {
+  const [form, setForm] = useState({ username: '', email: '', password: '', gameUid: '' })
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
+
   return (
-    <div className="relative min-h-[calc(100vh-200px)] grid place-items-center px-4 py-12 overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_50%,rgba(0,180,255,0.1),transparent_60%)] pointer-events-none" />
-      <div className="absolute inset-0 bg-grid opacity-30 pointer-events-none" />
-      <div className="relative w-full max-w-md">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 justify-center mb-8"
-          aria-label="PUBG Mobile Tournament home"
-        >
-          <span className="grid h-10 w-10 place-items-center rounded-md bg-gradient-to-br from-[var(--color-primary)] to-[#ff7a00]">
-            <Crosshair className="h-5 w-5 text-[#0a0a0f]" strokeWidth={2.5} />
-          </span>
-          <span className="font-display text-2xl font-extrabold uppercase tracking-wider">
-            PUBG Mobile Tournament
-          </span>
-        </Link>
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 md:p-8">
-          <h1 className="font-display text-3xl font-extrabold uppercase tracking-wider">
-            Enlist
-          </h1>
-          <p className="mt-1 text-sm text-[var(--color-muted)]">
-            Create your account. Free, no commitment.
-          </p>
-          <div className="mt-6">
-            <RegisterForm />
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 16px',
+      background: 'radial-gradient(ellipse 60% 50% at 50% 0%, rgba(0,212,255,0.08) 0%, transparent 60%), var(--bg-base)' }}>
+      <div style={{ width: '100%', maxWidth: 460 }}>
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 900, letterSpacing: '0.06em' }}>
+            BATTLE<span style={{ color: 'var(--gold)' }}>ZONE</span>
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 6 }}>Join the tournament platform</div>
+        </div>
+
+        <div className="card" style={{ padding: 32 }}>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, fontWeight: 700, marginBottom: 24, textAlign: 'center' }}>Create Account</h1>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {[
+              { key: 'username', label: 'Username', placeholder: 'YourGamerTag', type: 'text' },
+              { key: 'email', label: 'Email', placeholder: 'your@email.com', type: 'email' },
+              { key: 'gameUid', label: 'PUBG UID', placeholder: '5xxxxxxxxx (optional)', type: 'text' },
+              { key: 'password', label: 'Password', placeholder: '••••••••', type: 'password' },
+            ].map(f => (
+              <div key={f.key}>
+                <label style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>{f.label}</label>
+                <input className="input" type={f.type} placeholder={f.placeholder} value={(form as any)[f.key]} onChange={set(f.key)} />
+              </div>
+            ))}
+            <button className="btn btn-gold" style={{ marginTop: 8, width: '100%' }}>Create Account</button>
+          </div>
+          <div style={{ marginTop: 24, textAlign: 'center' }}>
+            <div style={{ height: 1, background: 'var(--border)', marginBottom: 20 }}/>
+            <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Already have an account? </span>
+            <Link href="/auth/login" style={{ color: 'var(--gold)', fontSize: 13, textDecoration: 'none', fontWeight: 600 }}>Sign in →</Link>
           </div>
         </div>
-        <p className="mt-6 text-center text-sm text-[var(--color-muted)]">
-          Already have an account?{" "}
-          <Link
-            href="/auth/login"
-            className="font-bold uppercase tracking-wider text-[var(--color-primary)] hover:underline"
-          >
-            Sign in
-          </Link>
-        </p>
       </div>
     </div>
-  );
+  )
 }

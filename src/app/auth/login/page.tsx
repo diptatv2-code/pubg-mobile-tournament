@@ -1,48 +1,45 @@
-import { LoginForm } from "./LoginForm";
-import { Crosshair } from "lucide-react";
-import Link from "next/link";
-
-export const metadata = { title: "Sign In — PUBG Mobile Tournament" };
+'use client'
+import Link from 'next/link'
+import { useState } from 'react'
 
 export default function LoginPage() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+
   return (
-    <div className="relative min-h-[calc(100vh-200px)] grid place-items-center px-4 py-12 overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_50%,rgba(242,169,0,0.12),transparent_60%)] pointer-events-none" />
-      <div className="absolute inset-0 bg-grid opacity-30 pointer-events-none" />
-      <div className="relative w-full max-w-md">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 justify-center mb-8"
-          aria-label="PUBG Mobile Tournament home"
-        >
-          <span className="grid h-10 w-10 place-items-center rounded-md bg-gradient-to-br from-[var(--color-primary)] to-[#ff7a00]">
-            <Crosshair className="h-5 w-5 text-[#0a0a0f]" strokeWidth={2.5} />
-          </span>
-          <span className="font-display text-2xl font-extrabold uppercase tracking-wider">
-            PUBG Mobile Tournament
-          </span>
-        </Link>
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 md:p-8">
-          <h1 className="font-display text-3xl font-extrabold uppercase tracking-wider">
-            Welcome back, soldier
-          </h1>
-          <p className="mt-1 text-sm text-[var(--color-muted)]">
-            Sign in to continue your campaign.
-          </p>
-          <div className="mt-6">
-            <LoginForm />
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 16px',
+      background: 'radial-gradient(ellipse 60% 50% at 50% 0%, rgba(124,58,237,0.1) 0%, transparent 60%), var(--bg-base)' }}>
+      <div style={{ width: '100%', maxWidth: 420 }}>
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 900, letterSpacing: '0.06em' }}>
+            BATTLE<span style={{ color: 'var(--gold)' }}>ZONE</span>
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 6 }}>Sign in to your account</div>
+        </div>
+
+        <div className="card" style={{ padding: 32 }}>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, fontWeight: 700, marginBottom: 24, textAlign: 'center' }}>Welcome Back</h1>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>Email</label>
+              <input className="input" type="email" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>Password</label>
+              <input className="input" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
+            </div>
+            <button className="btn btn-gold" style={{ marginTop: 8, width: '100%' }}>Sign In</button>
+          </div>
+
+          <div style={{ marginTop: 24, textAlign: 'center' }}>
+            <div style={{ height: 1, background: 'var(--border)', marginBottom: 20 }}/>
+            <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Don&apos;t have an account? </span>
+            <Link href="/auth/register" style={{ color: 'var(--gold)', fontSize: 13, textDecoration: 'none', fontWeight: 600 }}>Create one →</Link>
           </div>
         </div>
-        <p className="mt-6 text-center text-sm text-[var(--color-muted)]">
-          New here?{" "}
-          <Link
-            href="/auth/register"
-            className="font-bold uppercase tracking-wider text-[var(--color-primary)] hover:underline"
-          >
-            Create an account
-          </Link>
-        </p>
       </div>
     </div>
-  );
+  )
 }

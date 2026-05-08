@@ -1,43 +1,34 @@
-import type { Metadata } from "next";
-import { Inter, Barlow_Condensed } from "next/font/google";
-import "./globals.css";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const barlow = Barlow_Condensed({
-  variable: "--font-barlow",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800", "900"],
-  display: "swap",
-});
+import type { Metadata } from 'next'
+import './globals.css'
+import Header from '@/components/layout/Header'
+import Footer from '@/components/layout/Footer'
 
 export const metadata: Metadata = {
-  title: 'PUBG Mobile Tournament',
-  description:
-    "Host and join competitive PUBG Mobile tournaments. Live leaderboards, custom rooms, prize pools.",
-  metadataBase: new URL("https://pubgmobiletournament.example"),
-};
+  title: 'BattleZone — PUBG Mobile Tournaments',
+  description: 'Professional PUBG Mobile tournament platform. Host and join competitive esports tournaments worldwide.',
+  keywords: 'PUBG Mobile, tournament, esports, battle royale, competitive gaming',
+  openGraph: {
+    title: 'BattleZone — PUBG Mobile Tournaments',
+    description: 'Professional PUBG Mobile tournament platform',
+    type: 'website',
+  },
+}
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${inter.variable} ${barlow.variable} h-full`}
-      suppressHydrationWarning
-    >
-      <body className="min-h-full flex flex-col">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet" />
+      </head>
+      <body>
         <Header />
-        <main className="flex-1">{children}</main>
+        <main style={{ paddingTop: 64, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+          {children}
+        </main>
         <Footer />
       </body>
     </html>
-  );
+  )
 }
