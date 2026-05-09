@@ -1,257 +1,464 @@
 import Link from 'next/link'
-
-const STATS = [
-  { label: 'Active Tournaments', value: '2,400+', color: 'var(--gold)' },
-  { label: 'Registered Players', value: '18,000+', color: 'var(--cyan)' },
-  { label: 'Prize Distributed', value: '$340K', color: 'var(--purple-light)' },
-  { label: 'Countries', value: '42+', color: '#22c55e' },
-]
+import PubgCharacter from '@/components/pubg/PubgCharacter'
+import AnimatedCounter from '@/components/home/AnimatedCounter'
+import NewsTicker from '@/components/home/NewsTicker'
+import LiveTicker from '@/components/home/LiveTicker'
 
 const FEATURED = [
-  { title: 'PMGC Qualifier Series', prize: '$10,000', teams: '128', status: 'live', map: 'Erangel', mode: 'Squad TPP', tag: 'HIGH TIER', tagColor: 'tag-gold' },
-  { title: 'Asia Open Championship', prize: '$5,000', teams: '64', status: 'registration', map: 'Miramar', mode: 'Squad FPP', tag: 'OPEN', tagColor: 'tag-cyan' },
-  { title: 'Weekday Warriors #48', prize: '$500', teams: '32', status: 'upcoming', map: 'Sanhok', mode: 'Squad TPP', tag: 'COMMUNITY', tagColor: 'tag-purple' },
+  {
+    id: '1',
+    title: 'PMGC Qualifier Series — Asia',
+    prize: 10000,
+    teams: 112,
+    max: 128,
+    status: 'live',
+    map: 'Erangel',
+    mode: 'Squad TPP',
+    format: 'Group → Knockout',
+    accent: 'red',
+  },
+  {
+    id: '2',
+    title: 'Asia Open Championship 2026',
+    prize: 5000,
+    teams: 48,
+    max: 64,
+    status: 'open',
+    map: 'Miramar',
+    mode: 'Squad FPP',
+    format: 'Single Elimination',
+    accent: 'gold',
+    countdown: 'Starts in 4D 12H',
+  },
+  {
+    id: '3',
+    title: 'Weekday Warriors #48',
+    prize: 500,
+    teams: 22,
+    max: 32,
+    status: 'upcoming',
+    map: 'Sanhok',
+    mode: 'Squad TPP',
+    format: 'Battle Royale',
+    accent: 'cyan',
+    countdown: 'May 10 · 8 PM',
+  },
+] as const
+
+const HOW_STEPS = [
+  { n: '01', title: 'Register', desc: 'Create your free account and verify your PUBG Mobile UID. Takes less than 60 seconds.' },
+  { n: '02', title: 'Form Team', desc: 'Build your squad of 4 elite players. Invite friends or join the open lobby.' },
+  { n: '03', title: 'Compete', desc: 'Receive encrypted room codes at match time. Battle it out across iconic maps.' },
+  { n: '04', title: 'Win Prizes', desc: 'Real-time scoring. Automatic payouts. Transparent leaderboard. Glory awaits.' },
 ]
 
-const HOW_IT_WORKS = [
-  { step: '01', title: 'Create or Browse', desc: 'Find the perfect tournament for your skill level, or host your own with full configuration control.', icon: '🔍' },
-  { step: '02', title: 'Register Your Team', desc: 'Form a squad of up to 4 players, submit PUBG UIDs, and lock your roster before the deadline.', icon: '🎮' },
-  { step: '03', title: 'Compete Live', desc: 'Receive encrypted room codes at match time. Play, dominate, and watch your kills update the live leaderboard.', icon: '⚔️' },
-  { step: '04', title: 'Claim Victory', desc: 'Tiebreakers resolved automatically. Winners receive prize payouts directly to their digital wallet.', icon: '🏆' },
+const STATS = [
+  { label: 'Tournaments', value: 2847, prefix: '', suffix: '+', color: 'var(--gold-bright)' },
+  { label: 'Players', value: 127493, prefix: '', suffix: '', color: 'var(--cyan-bright)' },
+  { label: 'Distributed', value: 1.2, prefix: '$', suffix: 'M', decimals: 1, color: 'var(--gold)' },
+  { label: 'Countries', value: 42, prefix: '', suffix: '', color: 'var(--green)' },
 ]
+
+const accentBar = (a: 'red' | 'gold' | 'cyan') =>
+  a === 'red'
+    ? 'linear-gradient(90deg, #FF4444, #FF8C00)'
+    : a === 'gold'
+      ? 'linear-gradient(90deg, #E5C76B, #C8A951, #FF8C00)'
+      : 'linear-gradient(90deg, #5BE9FF, #00D4FF, #007FA3)'
+
+const accentMap = (a: 'red' | 'gold' | 'cyan') =>
+  a === 'red'
+    ? 'linear-gradient(135deg, rgba(255,68,68,0.18), rgba(15,27,46,0.7) 60%)'
+    : a === 'gold'
+      ? 'linear-gradient(135deg, rgba(200,169,81,0.18), rgba(15,27,46,0.7) 60%)'
+      : 'linear-gradient(135deg, rgba(0,212,255,0.18), rgba(15,27,46,0.7) 60%)'
 
 export default function HomePage() {
   return (
     <div style={{ overflowX: 'hidden' }}>
-
-      {/* HERO */}
+      {/* ============ HERO ============ */}
       <section style={{
-        position: 'relative', minHeight: '92vh',
-        display: 'flex', alignItems: 'center',
-        background: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124,58,237,0.12) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 80% 50%, rgba(0,212,255,0.06) 0%, transparent 50%), var(--bg-base)',
+        position: 'relative',
+        minHeight: 'calc(100vh - var(--header-h))',
+        paddingTop: 'calc(var(--header-h) + 32px)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
         overflow: 'hidden',
       }}>
-        {/* Grid bg */}
-        <div style={{
-          position: 'absolute', inset: 0, opacity: 0.03,
-          backgroundImage: 'linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)',
-          backgroundSize: '60px 60px',
-        }}/>
-
+        {/* Hex grid bg */}
+        <div className="hex-bg" aria-hidden />
         {/* Glow orbs */}
-        <div style={{ position:'absolute', top:'20%', right:'10%', width:400, height:400, borderRadius:'50%', background:'radial-gradient(circle, rgba(245,197,24,0.08) 0%, transparent 70%)', pointerEvents:'none' }}/>
-        <div style={{ position:'absolute', bottom:'20%', left:'5%', width:300, height:300, borderRadius:'50%', background:'radial-gradient(circle, rgba(0,212,255,0.06) 0%, transparent 70%)', pointerEvents:'none' }}/>
+        <div aria-hidden style={{
+          position: 'absolute', top: '20%', right: '8%',
+          width: 500, height: 500, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(200,169,81,0.12) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+        <div aria-hidden style={{
+          position: 'absolute', bottom: '10%', left: '0%',
+          width: 360, height: 360, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(0,212,255,0.08) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
 
-        <div className="container" style={{ position:'relative', zIndex:2, display:'grid', gridTemplateColumns:'1fr 1fr', gap:60, alignItems:'center' }}>
-          {/* Left */}
-          <div style={{ animation: 'fadeInUp 0.8s ease forwards' }}>
-            <div className="live-badge" style={{ marginBottom: 24 }}>🔴 LIVE TOURNAMENTS NOW</div>
-
-            <h1 style={{
-              fontFamily: 'var(--font-display)', fontWeight: 900,
-              fontSize: 'clamp(2.5rem, 5vw, 4.5rem)', lineHeight: 1.05,
-              letterSpacing: '-0.02em', marginBottom: 24,
+        <div className="container" style={{
+          position: 'relative', zIndex: 2, flex: 1,
+          display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 48, alignItems: 'center',
+          paddingTop: 32, paddingBottom: 64,
+        }}>
+          {/* LEFT: Headline + CTAs + Stats */}
+          <div className="hero-left animate-fade-up">
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              fontFamily: 'var(--font-heading)', fontSize: 12, fontWeight: 600,
+              color: 'var(--cyan)', letterSpacing: '0.22em', textTransform: 'uppercase',
+              marginBottom: 24,
             }}>
-              <span style={{ display:'block', color:'var(--text-primary)' }}>DOMINATE</span>
-              <span style={{ display:'block', background:'linear-gradient(135deg,#f5c518,#ff8c00)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>THE BATTLEGROUND</span>
+              <span aria-hidden style={{ color: 'var(--gold-bright)', fontSize: 16 }}>⊕</span>
+              Official Tournament Platform
+            </div>
+
+            <h1 className="heading-display" style={{ marginBottom: 24 }}>
+              <span style={{ display: 'block', color: 'var(--text)' }}>Battle for</span>
+              <span className="gradient-gold" style={{ display: 'block' }}>Supremacy</span>
             </h1>
 
-            <p style={{ fontSize:18, color:'var(--text-secondary)', lineHeight:1.7, marginBottom:40, maxWidth:520 }}>
-              The most advanced PUBG Mobile tournament platform. Real-time leaderboards, encrypted room codes, automated scoring — built for champions.
+            <p style={{
+              fontSize: 18, color: 'var(--text-secondary)',
+              maxWidth: 560, marginBottom: 36, lineHeight: 1.7,
+            }}>
+              Join <strong style={{ color: 'var(--gold-bright)' }}>127,000+</strong> players competing in PUBG Mobile tournaments worldwide. Real-time scoring, encrypted rooms, automatic payouts.
             </p>
 
-            <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
-              <Link href="/tournaments" className="btn btn-gold btn-lg" style={{ textDecoration:'none' }}>
-                Browse Tournaments →
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 48 }}>
+              <Link href="/tournaments" className="btn-primary" style={{ fontSize: 15, padding: '16px 36px' }}>
+                Join Tournament →
               </Link>
-              <Link href="/tournaments/create" className="btn btn-outline btn-lg" style={{ textDecoration:'none' }}>
-                Host a Tournament
+              <Link href="/tournaments/create" className="btn-secondary" style={{ fontSize: 15, padding: '16px 36px' }}>
+                Host Your Own
               </Link>
             </div>
 
-            {/* Mini stats */}
-            <div style={{ display:'flex', gap:32, marginTop:48, paddingTop:32, borderTop:'1px solid var(--border)' }}>
-              {STATS.slice(0,3).map(s => (
-                <div key={s.label}>
-                  <div style={{ fontFamily:'var(--font-display)', fontSize:24, fontWeight:700, color:s.color, lineHeight:1 }}>{s.value}</div>
-                  <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Right — Visual */}
-          <div style={{ display:'flex', justifyContent:'center', animation:'float 5s ease-in-out infinite' }}>
+            {/* Inline stats */}
             <div style={{
-              width:380, height:420,
-              background:'linear-gradient(135deg, var(--bg-card), var(--bg-elevated))',
-              border:'1px solid var(--border-bright)',
-              borderRadius:24,
-              padding:28,
-              position:'relative',
-              boxShadow:'0 0 60px rgba(245,197,24,0.1), 0 0 120px rgba(0,212,255,0.05)',
+              display: 'grid', gridTemplateColumns: 'repeat(3, auto)', gap: 40,
+              paddingTop: 32, borderTop: '1px solid var(--border)', justifyContent: 'start',
             }}>
-              {/* Match card preview */}
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-                <span style={{ fontFamily:'var(--font-heading)', fontSize:13, color:'var(--text-secondary)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Live Match</span>
-                <span className="live-badge">LIVE</span>
-              </div>
-              <div style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:700, color:'var(--gold)', marginBottom:6, letterSpacing:'0.04em' }}>PMGC QUALIFIER</div>
-              <div style={{ color:'var(--text-secondary)', fontSize:14, marginBottom:20 }}>Match 3 of 5 · Erangel · Squad TPP</div>
-
-              {/* Leaderboard preview */}
               {[
-                { rank:1, team:'ALPHA WOLVES', kills:24, pts:68, color:'#f5c518' },
-                { rank:2, team:'STORM RIDERS', kills:19, pts:54, color:'#94a3b8' },
-                { rank:3, team:'GHOST SQUAD', kills:17, pts:49, color:'#cd7f32' },
-                { rank:4, team:'IRON EAGLES', kills:15, pts:43, color:'var(--text-muted)' },
-              ].map(row => (
-                <div key={row.rank} style={{
-                  display:'flex', alignItems:'center', gap:12, padding:'10px 12px',
-                  background: row.rank===1 ? 'rgba(245,197,24,0.08)' : 'transparent',
-                  borderRadius:8, marginBottom:4,
-                  border: row.rank===1 ? '1px solid rgba(245,197,24,0.2)' : '1px solid transparent',
-                }}>
-                  <span style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:700, color:row.color, width:20 }}>#{row.rank}</span>
-                  <span style={{ fontFamily:'var(--font-heading)', fontSize:14, fontWeight:600, flex:1, color: row.rank===1 ? 'var(--gold)' : 'var(--text-primary)' }}>{row.team}</span>
-                  <span style={{ fontSize:12, color:'var(--text-secondary)' }}>{row.kills}K</span>
-                  <span style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:700, color: row.rank===1 ? 'var(--gold)' : 'var(--text-primary)' }}>{row.pts}</span>
+                { v: 2847, l: 'Tournaments', c: 'var(--gold-bright)' },
+                { v: 127493, l: 'Players', c: 'var(--cyan-bright)' },
+                { v: 1.2, l: 'Prize Money', c: 'var(--gold)', prefix: '$', suffix: 'M', decimals: 1 },
+              ].map(s => (
+                <div key={s.l}>
+                  <div style={{
+                    fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 700,
+                    color: s.c, lineHeight: 1, letterSpacing: '-0.01em',
+                  }}>
+                    <AnimatedCounter to={s.v} prefix={s.prefix ?? ''} suffix={s.suffix ?? '+'} decimals={s.decimals ?? 0} />
+                  </div>
+                  <div style={{
+                    fontSize: 11, color: 'var(--text-muted)', marginTop: 6,
+                    textTransform: 'uppercase', letterSpacing: '0.14em',
+                    fontFamily: 'var(--font-heading)', fontWeight: 600,
+                  }}>{s.l}</div>
                 </div>
               ))}
-
-              <div style={{ position:'absolute', bottom:20, left:28, right:28, height:2, background:'linear-gradient(90deg, var(--gold), var(--cyan), var(--purple))', borderRadius:2, opacity:0.6 }}/>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* STATS BAND */}
-      <section style={{ background:'var(--bg-surface)', borderTop:'1px solid var(--border)', borderBottom:'1px solid var(--border)', padding:'32px 0' }}>
-        <div className="container">
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:24 }}>
-            {STATS.map(stat => (
-              <div key={stat.label} style={{ textAlign:'center' }}>
-                <div style={{ fontFamily:'var(--font-display)', fontSize:36, fontWeight:900, color:stat.color, lineHeight:1 }}>{stat.value}</div>
-                <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:6, textTransform:'uppercase', letterSpacing:'0.08em' }}>{stat.label}</div>
-              </div>
-            ))}
+          {/* RIGHT: Character */}
+          <div className="hero-right" style={{
+            display: 'flex', justifyContent: 'center', alignItems: 'center',
+            position: 'relative',
+          }}>
+            {/* Decorative concentric rings */}
+            <div aria-hidden style={{
+              position: 'absolute', width: 460, height: 460, borderRadius: '50%',
+              border: '1px solid var(--border)', boxShadow: '0 0 80px rgba(200,169,81,0.12) inset',
+            }} />
+            <div aria-hidden style={{
+              position: 'absolute', width: 360, height: 360, borderRadius: '50%',
+              border: '1px dashed var(--border-strong)',
+              animation: 'spin 60s linear infinite',
+            }} />
+            <PubgCharacter />
           </div>
         </div>
+
+        {/* News ticker bottom */}
+        <NewsTicker />
       </section>
 
-      {/* FEATURED TOURNAMENTS */}
+      {/* ============ LIVE NOW ============ */}
+      <LiveTicker />
+
+      {/* ============ FEATURED TOURNAMENTS ============ */}
       <section className="section">
         <div className="container">
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:40 }}>
-            <div>
-              <div style={{ fontFamily:'var(--font-heading)', fontSize:13, color:'var(--gold)', textTransform:'uppercase', letterSpacing:'0.12em', marginBottom:8 }}>● Featured</div>
-              <h2 style={{ fontFamily:'var(--font-display)', fontSize:'clamp(1.8rem,3vw,2.8rem)', fontWeight:700, letterSpacing:'-0.01em' }}>
-                Active <span className="gradient-gold">Tournaments</span>
-              </h2>
-            </div>
-            <Link href="/tournaments" className="btn btn-outline btn-sm" style={{ textDecoration:'none' }}>View All →</Link>
+          <div style={{ textAlign: 'center', marginBottom: 56 }}>
+            <div className="section-eyebrow" style={{ justifyContent: 'center' }}>FEATURED</div>
+            <h2 className="heading-section underline-gold underline-gold-center" style={{ display: 'inline-block' }}>
+              Featured <span className="gradient-gold">Tournaments</span>
+            </h2>
+            <p style={{ marginTop: 18, color: 'var(--text-secondary)', fontSize: 16 }}>
+              The biggest battles happening right now and coming up
+            </p>
           </div>
 
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:20 }}>
+          <div className="grid-tournaments">
             {FEATURED.map((t, i) => (
-              <div key={i} className="card border-glow" style={{ position:'relative', overflow:'hidden' }}>
-                {/* Top accent */}
-                <div style={{ position:'absolute', top:0, left:0, right:0, height:3,
-                  background: i===0 ? 'linear-gradient(90deg,#f5c518,#ff8c00)' : i===1 ? 'linear-gradient(90deg,#00d4ff,#0099bb)' : 'linear-gradient(90deg,#9d5cf6,#7c3aed)' }}/>
+              <article
+                key={t.id}
+                className="card-glass border-glow animate-fade-up"
+                style={{
+                  position: 'relative',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  animationDelay: `${i * 0.1}s`,
+                }}
+              >
+                {/* Top accent bar */}
+                <div aria-hidden style={{
+                  position: 'absolute', top: 0, left: 0, right: 0, height: 3,
+                  background: accentBar(t.accent),
+                  zIndex: 2,
+                }} />
 
-                <div style={{ paddingTop:12 }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-                    <span className={`tag ${t.tagColor}`}>{t.tag}</span>
-                    {t.status === 'live' && <span className="live-badge">LIVE</span>}
-                    {t.status === 'registration' && <span className="tag tag-green">OPEN</span>}
-                    {t.status === 'upcoming' && <span className="tag" style={{ background:'rgba(148,163,184,0.1)', color:'var(--text-secondary)', border:'1px solid var(--border)' }}>UPCOMING</span>}
+                {/* Banner with map watermark */}
+                <div style={{
+                  height: 110,
+                  background: accentMap(t.accent),
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderBottom: '1px solid var(--border)',
+                }}>
+                  <div aria-hidden className="hex-grid" style={{ opacity: 0.6 }} />
+                  <div style={{
+                    position: 'absolute', top: 16, left: 20,
+                    fontFamily: 'var(--font-heading)', fontSize: 11,
+                    color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.16em',
+                  }}>{t.format}</div>
+                  <div style={{
+                    position: 'absolute', bottom: 12, right: 20,
+                    fontFamily: 'var(--font-heading)', fontSize: 56, fontWeight: 700,
+                    color: 'rgba(255,255,255,0.04)', textTransform: 'uppercase', lineHeight: 0.85,
+                    letterSpacing: '-0.04em',
+                  }}>{t.map}</div>
+                  <div style={{ position: 'absolute', top: 16, right: 16 }}>
+                    {t.status === 'live' && <span className="tag-live">LIVE</span>}
+                    {t.status === 'open' && <span className="tag-open">OPEN</span>}
+                    {t.status === 'upcoming' && <span className="tag-upcoming">UPCOMING</span>}
                   </div>
-
-                  <h3 style={{ fontFamily:'var(--font-heading)', fontSize:20, fontWeight:700, marginBottom:16, lineHeight:1.2 }}>{t.title}</h3>
-
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:20 }}>
-                    {[
-                      { label:'Prize Pool', value:t.prize, highlight:true },
-                      { label:'Teams', value:`${t.teams} Max` },
-                      { label:'Map', value:t.map },
-                      { label:'Mode', value:t.mode },
-                    ].map(info => (
-                      <div key={info.label} style={{ padding:'10px 12px', background:'var(--bg-elevated)', borderRadius:8 }}>
-                        <div style={{ fontSize:11, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>{info.label}</div>
-                        <div style={{ fontFamily: info.highlight ? 'var(--font-display)' : 'inherit', fontSize:14, fontWeight:600, color: info.highlight ? 'var(--gold)' : 'var(--text-primary)' }}>{info.value}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <Link href="/tournaments" className="btn btn-outline" style={{ textDecoration:'none', width:'100%', justifyContent:'center' }}>
-                    View Tournament
-                  </Link>
                 </div>
-              </div>
+
+                <div style={{ padding: 24, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <h3 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12, lineHeight: 1.25 }}>{t.title}</h3>
+
+                  <div style={{
+                    display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 18,
+                  }}>
+                    <span style={{
+                      fontFamily: 'var(--font-heading)', fontSize: 36, fontWeight: 700,
+                      lineHeight: 1, letterSpacing: '-0.02em',
+                    }} className="gradient-gold">${t.prize.toLocaleString()}</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Prize Pool</span>
+                  </div>
+
+                  {/* Team progress */}
+                  <div style={{ marginBottom: 18 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'var(--font-heading)' }}>Teams</span>
+                      <span style={{ fontFamily: 'var(--font-heading)', fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                        {t.teams}<span style={{ color: 'var(--text-muted)' }}>/{t.max}</span>
+                      </span>
+                    </div>
+                    <div className="progress-track">
+                      <div
+                        className={
+                          'progress-fill' +
+                          (t.teams / t.max >= 0.85 ? ' progress-fill-hot' : t.teams / t.max >= 0.5 ? ' progress-fill-warn' : '')
+                        }
+                        style={{ width: `${Math.round((t.teams / t.max) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Pills */}
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 20 }}>
+                    <span className="tag tag-cyan">{t.map}</span>
+                    <span className="tag tag-gold">{t.mode}</span>
+                  </div>
+
+                  <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+                    <span style={{ fontFamily: 'var(--font-heading)', fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                      {t.status === 'live' ? '● Match in progress' : t.countdown}
+                    </span>
+                    <Link href={`/tournaments/${t.id}`} className="btn-primary" style={{ padding: '10px 20px', fontSize: 12 }}>
+                      {t.status === 'live' ? 'Watch Live' : 'Register'}
+                    </Link>
+                  </div>
+                </div>
+              </article>
             ))}
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: 48 }}>
+            <Link href="/tournaments" className="btn-secondary">View All Tournaments →</Link>
           </div>
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
-      <section className="section" style={{ background:'var(--bg-surface)', borderTop:'1px solid var(--border)', borderBottom:'1px solid var(--border)' }}>
-        <div className="container">
-          <div style={{ textAlign:'center', marginBottom:60 }}>
-            <div style={{ fontFamily:'var(--font-heading)', fontSize:13, color:'var(--cyan)', textTransform:'uppercase', letterSpacing:'0.12em', marginBottom:8 }}>● How It Works</div>
-            <h2 style={{ fontFamily:'var(--font-display)', fontSize:'clamp(1.8rem,3vw,2.8rem)', fontWeight:700 }}>
+      {/* ============ HOW IT WORKS ============ */}
+      <section className="section" style={{
+        background: 'linear-gradient(180deg, transparent, rgba(10,16,32,0.6), transparent)',
+        borderTop: '1px solid var(--border)',
+        borderBottom: '1px solid var(--border)',
+        position: 'relative',
+      }}>
+        <div className="dot-grid" aria-hidden />
+        <div className="container" style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ textAlign: 'center', marginBottom: 64 }}>
+            <div className="section-eyebrow section-eyebrow-cyan" style={{ justifyContent: 'center' }}>HOW IT WORKS</div>
+            <h2 className="heading-section">
               From Register to <span className="gradient-cyan">Champion</span>
             </h2>
           </div>
 
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:24 }}>
-            {HOW_IT_WORKS.map((step, i) => (
-              <div key={i} style={{ position:'relative' }}>
-                {i < HOW_IT_WORKS.length - 1 && (
-                  <div style={{ position:'absolute', top:28, left:'calc(50% + 40px)', width:'calc(100% - 20px)', height:1, background:'linear-gradient(90deg, var(--border-bright), var(--border))', zIndex:0 }}/>
-                )}
-                <div style={{ position:'relative', zIndex:1, textAlign:'center' }}>
-                  <div style={{
-                    width:56, height:56, borderRadius:12, marginBottom:20, marginLeft:'auto', marginRight:'auto',
-                    background:'var(--bg-card)', border:'1px solid var(--border-bright)',
-                    display:'flex', alignItems:'center', justifyContent:'center', fontSize:24,
-                  }}>{step.icon}</div>
-                  <div style={{ fontFamily:'var(--font-display)', fontSize:28, fontWeight:900, color:'var(--border-bright)', lineHeight:1, marginBottom:8 }}>{step.step}</div>
-                  <h3 style={{ fontFamily:'var(--font-heading)', fontSize:18, fontWeight:700, marginBottom:10 }}>{step.title}</h3>
-                  <p style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:1.7 }}>{step.desc}</p>
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24,
+            position: 'relative',
+          }}>
+            {/* Connecting dashed line */}
+            <div aria-hidden style={{
+              position: 'absolute',
+              top: 44, left: '12%', right: '12%', height: 1,
+              backgroundImage: 'linear-gradient(90deg, transparent, var(--gold-dim) 20%, var(--gold) 50%, var(--gold-dim) 80%, transparent)',
+              backgroundSize: '12px 1px',
+              opacity: 0.5,
+              zIndex: 0,
+            }} className="how-line" />
+
+            {HOW_STEPS.map((s, i) => (
+              <div key={s.n} className="animate-fade-up" style={{
+                textAlign: 'center', position: 'relative', zIndex: 1,
+                animationDelay: `${i * 0.12}s`,
+              }}>
+                <div className="hex-step" style={{ margin: '0 auto 20px' }}>
+                  <span>{s.n}</span>
                 </div>
+                <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  {s.title}
+                </h3>
+                <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7 }}>{s.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA */}
+      {/* ============ STATS COUNTERS ============ */}
+      <section style={{
+        padding: '80px 0',
+        background: 'rgba(10, 16, 32, 0.6)',
+        borderBottom: '1px solid var(--border)',
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        <div className="hex-bg" aria-hidden />
+        <div className="container" style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 32,
+          }}>
+            {STATS.map((s, i) => (
+              <div key={s.label} className="animate-fade-up" style={{
+                textAlign: 'center',
+                padding: '24px 16px',
+                animationDelay: `${i * 0.1}s`,
+              }}>
+                <div style={{
+                  fontFamily: 'var(--font-heading)', fontSize: 'clamp(2.5rem, 4.5vw, 3.5rem)',
+                  fontWeight: 700, color: s.color, lineHeight: 1,
+                  letterSpacing: '-0.02em', textShadow: `0 0 30px ${s.color}33`,
+                }}>
+                  <AnimatedCounter to={s.value} prefix={s.prefix} suffix={s.suffix} decimals={s.decimals ?? 0} />
+                </div>
+                <div style={{
+                  marginTop: 14, fontSize: 12, color: 'var(--text-muted)',
+                  textTransform: 'uppercase', letterSpacing: '0.18em',
+                  fontFamily: 'var(--font-heading)', fontWeight: 600,
+                }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============ CTA ============ */}
       <section className="section">
         <div className="container">
           <div style={{
-            background:'linear-gradient(135deg, rgba(124,58,237,0.15), rgba(0,212,255,0.08))',
-            border:'1px solid var(--border-bright)', borderRadius:24,
-            padding:'64px 48px', textAlign:'center',
-            position:'relative', overflow:'hidden',
+            position: 'relative',
+            background:
+              'radial-gradient(ellipse 80% 100% at 50% 0%, rgba(200,169,81,0.25), transparent 60%), linear-gradient(180deg, rgba(15,27,46,0.95), rgba(10,16,32,0.95))',
+            border: '1px solid var(--border-strong)',
+            borderRadius: 20,
+            padding: 'clamp(48px, 8vw, 96px) 32px',
+            textAlign: 'center',
+            overflow: 'hidden',
+            boxShadow: '0 0 60px rgba(200,169,81,0.15)',
           }}>
-            <div style={{ position:'absolute', top:-60, right:-60, width:250, height:250, borderRadius:'50%', background:'radial-gradient(circle, rgba(245,197,24,0.08) 0%, transparent 70%)', pointerEvents:'none' }}/>
-            <div style={{ position:'absolute', bottom:-40, left:-40, width:200, height:200, borderRadius:'50%', background:'radial-gradient(circle, rgba(0,212,255,0.06) 0%, transparent 70%)', pointerEvents:'none' }}/>
-            <div style={{ position:'relative', zIndex:1 }}>
-              <div style={{ fontFamily:'var(--font-heading)', fontSize:13, color:'var(--gold)', textTransform:'uppercase', letterSpacing:'0.12em', marginBottom:16 }}>● Start Competing Today</div>
-              <h2 style={{ fontFamily:'var(--font-display)', fontSize:'clamp(2rem,4vw,3.5rem)', fontWeight:900, letterSpacing:'-0.02em', marginBottom:20 }}>
-                ARE YOU READY TO<br/><span className="gradient-gold">CLAIM THE CHICKEN DINNER?</span>
+            <div className="hex-grid" aria-hidden style={{ opacity: 0.4 }} />
+            <div aria-hidden style={{
+              position: 'absolute', top: -100, right: -80,
+              width: 360, height: 360, borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(200,169,81,0.18), transparent 70%)',
+            }} />
+            <div aria-hidden style={{
+              position: 'absolute', bottom: -100, left: -60,
+              width: 300, height: 300, borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(0,212,255,0.12), transparent 70%)',
+            }} />
+
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div className="section-eyebrow" style={{ justifyContent: 'center' }}>JOIN THE BATTLE</div>
+              <h2 className="heading-section" style={{ marginBottom: 18, fontSize: 'clamp(2.2rem, 5vw, 3.8rem)', textTransform: 'uppercase' }}>
+                Ready to <span className="gradient-gold">Dominate?</span>
               </h2>
-              <p style={{ color:'var(--text-secondary)', fontSize:16, marginBottom:40, maxWidth:500, marginLeft:'auto', marginRight:'auto', lineHeight:1.7 }}>
-                Join 18,000+ players competing in PUBG Mobile tournaments. Registration is free. Glory is earned.
+              <p style={{
+                color: 'var(--text-secondary)', fontSize: 17, maxWidth: 580,
+                margin: '0 auto 36px', lineHeight: 1.7,
+              }}>
+                Free to register. Free to compete. Earn real prizes by climbing the global leaderboard.
               </p>
-              <div style={{ display:'flex', gap:16, justifyContent:'center', flexWrap:'wrap' }}>
-                <Link href="/auth/register" className="btn btn-gold btn-lg" style={{ textDecoration:'none' }}>Create Free Account</Link>
-                <Link href="/tournaments" className="btn btn-outline btn-lg" style={{ textDecoration:'none' }}>Browse Tournaments</Link>
+              <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Link href="/auth/register" className="btn-primary" style={{ fontSize: 16, padding: '18px 40px' }}>
+                  Create Free Account
+                </Link>
+                <Link href="/tournaments" className="btn-secondary" style={{ fontSize: 16, padding: '18px 40px' }}>
+                  Browse Tournaments
+                </Link>
               </div>
             </div>
           </div>
         </div>
       </section>
+
+      {/* Page-scoped responsive helpers */}
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 1024px) {
+          .hero-left, .hero-right { grid-column: 1 / -1; }
+          .hero-right { display: none !important; }
+        }
+        @media (max-width: 768px) {
+          .grid-tournaments { grid-template-columns: 1fr !important; }
+          .how-line { display: none !important; }
+          section .section,
+          section[class~="section"] { padding: 56px 0; }
+        }
+      `}</style>
     </div>
   )
 }
