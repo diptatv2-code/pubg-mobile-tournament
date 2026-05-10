@@ -3,6 +3,7 @@ import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { logout } from '@/app/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -55,6 +56,11 @@ function LoginForm() {
             Don&apos;t have an account?{' '}
             <Link href="/auth/register" style={{ color: '#00D4FF' }}>Register here</Link>
           </p>
+          <form action={logout} className="text-center mt-2">
+            <button type="submit" className="text-xs hover:underline" style={{ color: '#6B7A99' }}>
+              Sign out of an existing session
+            </button>
+          </form>
         </Card>
       </div>
     </div>

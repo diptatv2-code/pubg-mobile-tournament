@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { logout } from '@/app/actions/auth'
 import type { User } from '@supabase/supabase-js'
 import { Trophy, LogIn, UserPlus, LogOut, Menu, X } from 'lucide-react'
 
@@ -19,8 +20,7 @@ export function Header() {
   }, [])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    window.location.href = '/'
+    await logout()
   }
 
   return (
