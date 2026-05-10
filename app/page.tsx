@@ -134,7 +134,7 @@ export default async function HomePage() {
       <section className="py-20 px-4 text-center" style={{ backgroundColor: '#0A1020' }}>
         <div className="max-w-2xl mx-auto">
           <h2 className="mb-4" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '2.5rem', fontWeight: 700, color: '#E8EAF0' }}>Ready to Compete?</h2>
-          <p className="mb-8" style={{ color: '#6B7A99' }}>Join our growing community of PUBG Mobile players.. Create or join a tournament today — completely free.</p>
+          <p className="mb-8" style={{ color: '#6B7A99' }}>Join our growing community of PUBG Mobile players. Create or join a tournament today — completely free.</p>
           <Link href="/auth/register" className="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-lg" style={{ backgroundColor: '#C8A951', color: '#040810' }}>
             Get Started Free <ChevronRight size={20} />
           </Link>
