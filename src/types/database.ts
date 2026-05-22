@@ -33,6 +33,19 @@ export interface User {
   created_at: string;
 }
 
+export interface Profile {
+  id: string;
+  email: string;
+  username: string;
+  pubg_id: string;
+  pubg_name: string;
+  avatar_url?: string;
+  bio?: string;
+  country?: string;
+  role: UserRole;
+  created_at?: string;
+}
+
 export interface PlayerStats {
   user_id: string;
   tournaments_played: number;
@@ -149,37 +162,25 @@ export interface LeaderboardEntry {
   wwcd_count: number;
 }
 
+type DBTable<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
+  Row: Row;
+  Insert: Insert;
+  Update: Update;
+  Relationships: Record<string, unknown>[];
+};
+
 export type Database = {
   public: {
     Tables: {
-      users: { Row: User; Insert: Partial<User>; Update: Partial<User> };
-      tournaments: {
-        Row: Tournament;
-        Insert: Partial<Tournament>;
-        Update: Partial<Tournament>;
-      };
-      teams: { Row: Team; Insert: Partial<Team>; Update: Partial<Team> };
-      team_members: {
-        Row: TeamMember;
-        Insert: Partial<TeamMember>;
-        Update: Partial<TeamMember>;
-      };
-      matches: { Row: Match; Insert: Partial<Match>; Update: Partial<Match> };
-      match_results: {
-        Row: MatchResult;
-        Insert: Partial<MatchResult>;
-        Update: Partial<MatchResult>;
-      };
-      tournament_announcements: {
-        Row: TournamentAnnouncement;
-        Insert: Partial<TournamentAnnouncement>;
-        Update: Partial<TournamentAnnouncement>;
-      };
-      room_codes: {
-        Row: RoomCode;
-        Insert: Partial<RoomCode>;
-        Update: Partial<RoomCode>;
-      };
+      users: DBTable<User>;
+      profiles: DBTable<Profile>;
+      tournaments: DBTable<Tournament>;
+      teams: DBTable<Team>;
+      team_members: DBTable<TeamMember>;
+      matches: DBTable<Match>;
+      match_results: DBTable<MatchResult>;
+      tournament_announcements: DBTable<TournamentAnnouncement>;
+      room_codes: DBTable<RoomCode>;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

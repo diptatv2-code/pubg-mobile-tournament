@@ -25,10 +25,12 @@ import { formatDistanceToNow } from "date-fns";
 import type {
   Tournament,
   Team,
+  TeamStatus,
   Match,
   TournamentAnnouncement,
   LeaderboardEntry,
 } from "@/types/database";
+import { supabase } from "@/lib/supabase";
 
 interface Props {
   tournament: Tournament;
@@ -40,21 +42,24 @@ interface Props {
 
 export function ManageDashboard({
   tournament: t,
-  teams,
+  teams: initialTeams,
   matches,
   leaderboard,
   announcements: initialAnnouncements,
 }: Props) {
+  const [teams, setTeams] = useState(initialTeams);
   const [announcements, setAnnouncements] = useState(initialAnnouncements);
   const [annTitle, setAnnTitle] = useState("");
   const [annBody, setAnnBody] = useState("");
 
-  const [roomCode, setRoomCode] = useState("47281950");
-  const [roomPwd, setRoomPwd] = useState("BZCC2026");
+  const [roomCode, setRoomCode] = useState("");
+  const [roomPwd, setRoomPwd] = useState("");
   const [selectedMatch, setSelectedMatch] = useState(
     matches.find((m) => m.status === "ongoing")?.id || matches[0]?.id || "",
   );
   const [copied, setCopied] = useState(false);
+
+  const [screenshot, setScreenshot] = useState<File | null>(null);
 
   const [results, setResults] = useState<
     Record<string, { placement: number; kills: number }>
@@ -68,27 +73,96 @@ export function ManageDashboard({
   const registered = teams.filter((x) => x.status === "registered").length;
   const waitlisted = teams.filter((x) => x.status === "waitlisted").length;
 
-  const sendAnnouncement = () => {
+  const handleTeamAction = async (
+    action: "approve" | "reject" | "checkin" | "dq",
+    team: Team,
+  ) => {
+    const nextStatus: Record<typeof action, TeamStatus | null> = {
+      checkin: "checked_in",
+      approve: "registered",
+      dq: "disqualified",
+      reject: null,
+    };
+    if (action === "reject") {
+      const { error } = await supabase.from("teams").delete().eq("id", team.id);
+      if (error) {
+        alert("Failed to reject team: " + error.message);
+        return;
+      }
+      setTeams((prev) => prev.filter((x) => x.id !== team.id));
+      return;
+    }
+    const status = nextStatus[action];
+    if (!status) return;
+    const { error } = await supabase
+      .from("teams")
+      .update({ status })
+      .eq("id", team.id);
+    if (error) {
+      alert("Failed to update team: " + error.message);
+      return;
+    }
+    setTeams((prev) =>
+      prev.map((x) => (x.id === team.id ? { ...x, status } : x)),
+    );
+  };
+
+  const sendAnnouncement = async () => {
     if (!annTitle.trim()) return;
-    setAnnouncements([
-      {
-        id: `a-${Date.now()}`,
-        tournament_id: t.id,
-        organizer_id: t.organizer_id,
-        title: annTitle,
-        message: annBody,
-        created_at: new Date().toISOString(),
-      },
-      ...announcements,
-    ]);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('tournament_announcements').insert({
+      tournament_id: t.id,
+      organizer_id: user?.id || t.organizer_id,
+      title: annTitle,
+      message: annBody,
+    }).select().single();
+    if (!error && data) {
+      setAnnouncements([data, ...announcements]);
+    }
     setAnnTitle("");
     setAnnBody("");
+  };
+
+  const saveRoomCode = async () => {
+    await supabase.from('room_codes').insert({
+      tournament_id: t.id,
+      match_id: selectedMatch,
+      room_code: roomCode,
+      room_password: roomPwd,
+      distributed_at: new Date().toISOString(),
+    });
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   const copyRoom = () => {
     void navigator.clipboard.writeText(`${roomCode} / ${roomPwd}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  };
+
+  const submitResults = async () => {
+    const rows = Object.entries(results).map(([teamId, res]) => ({
+      match_id: selectedMatch,
+      team_id: teamId,
+      placement: res.placement,
+      kills: res.kills,
+      kill_points: res.kills * (t.scoring_config?.kill_points ?? 1),
+      placement_points: (t.scoring_config?.placement_points?.find((p: {placement: number, points: number}) => p.placement === res.placement)?.points ?? 0),
+      total_points: (res.kills * (t.scoring_config?.kill_points ?? 1)) + (t.scoring_config?.placement_points?.find((p: {placement: number, points: number}) => p.placement === res.placement)?.points ?? 0),
+      wwcd: res.placement === 1,
+    }));
+    await supabase.from('match_results').upsert(rows, { onConflict: 'match_id,team_id' });
+    if (screenshot) {
+      const fileName = `${selectedMatch}/${Date.now()}.${screenshot.name.split('.').pop()}`
+      await supabase.storage.from('match-screenshots').upload(fileName, screenshot)
+    }
+    alert('Results saved!');
+  };
+
+  const updateStatus = async (newStatus: string) => {
+    await supabase.from('tournaments').update({ status: newStatus }).eq('id', t.id);
+    window.location.reload();
   };
 
   return (
@@ -110,7 +184,24 @@ export function ManageDashboard({
             Manage Tournament
           </h1>
         </div>
-        <StatusBadge status={t.status} />
+        <div className="flex items-center gap-3">
+          <StatusBadge status={t.status} />
+          {t.status === "draft" && (
+            <Button variant="secondary" onClick={() => updateStatus("registration_open")}>
+              Open Registration
+            </Button>
+          )}
+          {t.status === "registration_open" && (
+            <Button variant="secondary" onClick={() => updateStatus("ongoing")}>
+              Start Tournament
+            </Button>
+          )}
+          {t.status === "ongoing" && (
+            <Button variant="outline" onClick={() => updateStatus("completed")}>
+              End Tournament
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="participants">
@@ -151,7 +242,7 @@ export function ManageDashboard({
                 key={team.id}
                 team={team}
                 showActions
-                onAction={() => {}}
+                onAction={handleTeamAction}
               />
             ))}
           </div>
@@ -208,7 +299,7 @@ export function ManageDashboard({
                     {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                     {copied ? "Copied!" : "Copy"}
                   </Button>
-                  <Button variant="secondary">
+                  <Button variant="secondary" onClick={saveRoomCode}>
                     <Send className="h-4 w-4" /> Distribute to {checkedIn} teams
                   </Button>
                 </div>
@@ -217,22 +308,17 @@ export function ManageDashboard({
 
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 space-y-3">
               <h3 className="font-display text-base font-bold uppercase tracking-wider">
-                Distribution log
+                Distribution tips
               </h3>
-              <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs">
-                <div className="text-[10px] uppercase tracking-wider text-[var(--color-muted)]">
-                  Match 4 · Erangel
-                </div>
-                <div className="font-mono text-base mt-1">47281950 / BZCC2026</div>
-                <div className="mt-2 text-[var(--color-success)] flex items-center gap-1.5">
-                  <Check className="h-3 w-3" />
-                  Distributed to 16 teams
-                </div>
-                <div className="mt-1 text-[var(--color-muted-2)]">15 min ago</div>
-              </div>
-              <p className="text-xs text-[var(--color-muted)] leading-relaxed pt-2 border-t border-[var(--color-border)]">
-                Pro tip: distribute room codes 5–10 minutes before match start so teams
-                have time to enter the lobby.
+              <p className="text-xs text-[var(--color-muted)] leading-relaxed">
+                Distribute room codes 5–10 minutes before match start so teams
+                have time to enter the lobby. Each save inserts a row into
+                <code className="mx-1 text-[var(--color-primary)]">room_codes</code>
+                and is visible to checked-in teams in their live dashboard.
+              </p>
+              <p className="text-xs text-[var(--color-muted-2)] leading-relaxed pt-2 border-t border-[var(--color-border)]">
+                Only checked-in teams see the code. Never paste codes into a
+                public stream chat.
               </p>
             </div>
           </div>
@@ -306,10 +392,18 @@ export function ManageDashboard({
                 ))}
               </div>
               <div className="mt-5 flex flex-wrap gap-3 pt-4 border-t border-[var(--color-border)]">
-                <Button variant="primary">
+                <Button variant="primary" onClick={submitResults}>
                   <Trophy className="h-4 w-4" /> Save Results
                 </Button>
-                <Button variant="outline">Import Screenshot</Button>
+                <div className="mt-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-[var(--color-muted)] block mb-2">Result Screenshot (optional)</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={e => setScreenshot(e.target.files?.[0] || null)}
+                    className="text-sm text-[var(--color-muted)] file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-[var(--color-border)] file:text-white file:text-xs file:cursor-pointer"
+                  />
+                </div>
               </div>
             </div>
 

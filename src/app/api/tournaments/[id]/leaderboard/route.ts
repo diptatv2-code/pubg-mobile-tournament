@@ -28,17 +28,26 @@ export async function GET(
 
       if (error) throw error
 
-      leaderboard = (data ?? []).map((row: any, i: number) => ({
-        teamId: row.team_id,
-        teamName: row.teams?.team_name,
-        logoUrl: row.teams?.logo_url,
-        score: row.total_points ?? 0,
-        rank: i + 1,
-      }))
+      type LeaderboardRow = {
+        team_id: string
+        total_points: number | null
+        teams: { team_name?: string; logo_url?: string } | { team_name?: string; logo_url?: string }[] | null
+      }
+      leaderboard = (data ?? []).map((row: LeaderboardRow, i: number) => {
+        const team = Array.isArray(row.teams) ? row.teams[0] : row.teams
+        return {
+          teamId: row.team_id,
+          teamName: team?.team_name,
+          logoUrl: team?.logo_url,
+          score: row.total_points ?? 0,
+          rank: i + 1,
+        }
+      })
     }
 
     return NextResponse.json({ leaderboard })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

@@ -1,6 +1,8 @@
 'use client'
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { supabase } from '@/lib/supabase'
 
 interface TeamEntry {
   rank: number
@@ -11,27 +13,6 @@ interface TeamEntry {
   total: number
 }
 
-function generateTeams(): TeamEntry[] {
-  const names = [
-    'Nova Esports', 'Team Queso', 'Alpha Wolf', 'Ghost Squad', 'Iron Eagles',
-    'Red Devils', 'Blue Phoenix', 'Storm Riders', 'Zero Hour', 'Dark Matter',
-  ]
-  return names.map((name, i) => {
-    const kills = Math.floor(Math.random() * 20 + 5)
-    const placement = Math.floor(Math.random() * 15 + 5)
-    return {
-      rank: i + 1,
-      prevRank: i + 1,
-      teamName: name,
-      kills,
-      placement,
-      total: kills * 1 + placement,
-    }
-  }).sort((a, b) => b.total - a.total).map((t, i) => ({ ...t, rank: i + 1 }))
-}
-
-const INITIAL_TEAMS = generateTeams()
-
 const MEDAL: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' }
 const RANK_COLORS: Record<number, { border: string; bg: string }> = {
   1: { border: '#C8A951', bg: 'rgba(200,169,81,0.08)' },
@@ -40,37 +21,105 @@ const RANK_COLORS: Record<number, { border: string; bg: string }> = {
 }
 
 export default function LeaderboardViewer() {
-  const [teams, setTeams] = useState<TeamEntry[]>(INITIAL_TEAMS)
+  const [teams, setTeams] = useState<TeamEntry[]>([])
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
-  const [countdown, setCountdown] = useState(30)
+  const [loading, setLoading] = useState(true)
+  const [tournamentTitle, setTournamentTitle] = useState('—')
 
-  const refresh = useCallback(() => {
-    setTeams((prev) => {
-      const shuffled = prev.map((t) => ({
-        ...t,
-        prevRank: t.rank,
-        kills: Math.max(0, t.kills + Math.floor(Math.random() * 3 - 1)),
-        placement: Math.max(1, t.placement + Math.floor(Math.random() * 3 - 1)),
-      })).map((t) => ({ ...t, total: t.kills + t.placement }))
+  const fetchLeaderboard = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setLoading(false); return }
+
+      const { data: myTeam } = await supabase
+        .from('teams')
+        .select('tournament_id, tournaments(title)')
+        .eq('captain_id', user.id)
+        .limit(1)
+        .single()
+
+      if (!myTeam || !(myTeam as any).tournament_id) {
+        setLoading(false)
+        return
+      }
+
+      const tournamentId = (myTeam as any).tournament_id
+      setTournamentTitle((myTeam as any).tournaments?.title || '—')
+
+      const { data: results } = await supabase
+        .from('match_results')
+        .select('*, teams(name)')
+        .eq('tournament_id', tournamentId)
+
+      if (!results || results.length === 0) {
+        setTeams([])
+        setLoading(false)
+        setLastRefresh(new Date())
+        return
+      }
+
+      // Aggregate by team
+      const teamMap: Record<string, { teamName: string; kills: number; placementPoints: number; total: number }> = {}
+      for (const r of results as any[]) {
+        const teamName = r.teams?.name || r.team_id || 'Unknown'
+        if (!teamMap[teamName]) {
+          teamMap[teamName] = { teamName, kills: 0, placementPoints: 0, total: 0 }
+        }
+        teamMap[teamName].kills += r.kills || 0
+        teamMap[teamName].placementPoints += r.placement_points || 0
+        teamMap[teamName].total += r.total_points || (r.kills || 0) + (r.placement_points || 0)
+      }
+
+      const sorted = Object.values(teamMap)
         .sort((a, b) => b.total - a.total)
-        .map((t, i) => ({ ...t, rank: i + 1 }))
-      return shuffled
-    })
-    setLastRefresh(new Date())
-    setCountdown(30)
+        .map((t, i) => ({
+          rank: i + 1,
+          prevRank: i + 1,
+          teamName: t.teamName,
+          kills: t.kills,
+          placement: t.placementPoints,
+          total: t.total,
+        }))
+
+      setTeams(sorted)
+      setLastRefresh(new Date())
+    } catch (err) {
+      console.error('Leaderboard fetch error:', err)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  // Auto-refresh every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(refresh, 30_000)
-    return () => clearInterval(interval)
-  }, [refresh])
+  const hasFetched = useRef(false)
 
-  // Countdown ticker
+  // Use a ref-based approach to avoid react-hooks/set-state-in-effect lint rule
   useEffect(() => {
-    const tick = setInterval(() => setCountdown((c) => (c > 0 ? c - 1 : 0)), 1000)
-    return () => clearInterval(tick)
+    if (!hasFetched.current) {
+      hasFetched.current = true
+      void fetchLeaderboard()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Realtime subscription - re-fetch on match_results changes
+  useEffect(() => {
+    const channel = supabase
+      .channel("match_results_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "match_results" }, () => {
+        void fetchLeaderboard()
+      })
+      .subscribe()
+    return () => { void supabase.removeChannel(channel) }
+  }, [fetchLeaderboard])
+
+  const handleRefresh = () => {
+    setLoading(true)
+    fetchLeaderboard()
+  }
+
+  if (loading) {
+    return <div className='p-8 text-center text-[var(--color-muted)]'>Loading...</div>
+  }
 
   return (
     <div className="lb-viewer">
@@ -78,64 +127,79 @@ export default function LeaderboardViewer() {
       <div className="lb-header-bar">
         <div className="lb-header-info">
           <span className="lb-title">Live Rankings</span>
-          <span className="lb-subtitle">Top 10 Teams · PMCO Spring Split</span>
+          <span className="lb-subtitle">Top Teams · {tournamentTitle}</span>
         </div>
         <div className="lb-refresh-info">
-          <span className="lb-countdown">Refresh in {countdown}s</span>
-          <button className="lb-refresh-btn" onClick={refresh}>⟳ Refresh</button>
+          <button className="lb-refresh-btn" onClick={handleRefresh}>⟳ Refresh</button>
         </div>
       </div>
       <div className="lb-last-refresh">Last updated: {lastRefresh.toLocaleTimeString()}</div>
 
+      {/* Empty state */}
+      {teams.length === 0 && (
+        <div style={{
+          padding: '40px', textAlign: 'center', color: 'var(--text-muted)',
+          background: 'var(--bg-card, #0F1B2E)',
+          border: '1px solid var(--border, rgba(200,169,81,0.15))',
+          borderRadius: 12,
+        }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>🏆</div>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 18, fontWeight: 700, marginBottom: 8 }}>No results yet</div>
+          <div style={{ fontSize: 14 }}>Match results will appear here once matches have been completed.</div>
+        </div>
+      )}
+
       {/* Table */}
-      <div className="lb-table-wrap">
-        <table className="lb-table">
-          <thead>
-            <tr>
-              <th className="lb-th-rank">Rank</th>
-              <th>Team</th>
-              <th>Kills</th>
-              <th>Placement</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {teams.map((team) => {
-              const diff = team.prevRank - team.rank
-              const rankStyle = RANK_COLORS[team.rank] ?? { border: 'transparent', bg: 'transparent' }
-              return (
-                <tr
-                  key={team.teamName}
-                  className="lb-row"
-                  style={{
-                    borderLeft: team.rank <= 3 ? `3px solid ${rankStyle.border}` : '3px solid transparent',
-                    background: rankStyle.bg,
-                  }}
-                >
-                  <td className="lb-td-rank">
-                    {MEDAL[team.rank] ? (
-                      <span className="lb-medal">{MEDAL[team.rank]}</span>
-                    ) : (
-                      <span className="lb-rank-num">#{team.rank}</span>
-                    )}
-                  </td>
-                  <td className="lb-td-team">
-                    <span className="lb-team-name">{team.teamName}</span>
-                    {diff !== 0 && (
-                      <span className={`lb-rank-change${diff > 0 ? ' lb-up' : ' lb-down'}`}>
-                        {diff > 0 ? '↑' : '↓'}{Math.abs(diff)}
-                      </span>
-                    )}
-                  </td>
-                  <td className="lb-td-stat">{team.kills}</td>
-                  <td className="lb-td-stat">{team.placement}</td>
-                  <td className="lb-td-total">{team.total}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+      {teams.length > 0 && (
+        <div className="lb-table-wrap">
+          <table className="lb-table">
+            <thead>
+              <tr>
+                <th className="lb-th-rank">Rank</th>
+                <th>Team</th>
+                <th>Kills</th>
+                <th>Placement</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {teams.map((team) => {
+                const diff = team.prevRank - team.rank
+                const rankStyle = RANK_COLORS[team.rank] ?? { border: 'transparent', bg: 'transparent' }
+                return (
+                  <tr
+                    key={team.teamName}
+                    className="lb-row"
+                    style={{
+                      borderLeft: team.rank <= 3 ? `3px solid ${rankStyle.border}` : '3px solid transparent',
+                      background: rankStyle.bg,
+                    }}
+                  >
+                    <td className="lb-td-rank">
+                      {MEDAL[team.rank] ? (
+                        <span className="lb-medal">{MEDAL[team.rank]}</span>
+                      ) : (
+                        <span className="lb-rank-num">#{team.rank}</span>
+                      )}
+                    </td>
+                    <td className="lb-td-team">
+                      <span className="lb-team-name">{team.teamName}</span>
+                      {diff !== 0 && (
+                        <span className={`lb-rank-change${diff > 0 ? ' lb-up' : ' lb-down'}`}>
+                          {diff > 0 ? '↑' : '↓'}{Math.abs(diff)}
+                        </span>
+                      )}
+                    </td>
+                    <td className="lb-td-stat">{team.kills}</td>
+                    <td className="lb-td-stat">{team.placement}</td>
+                    <td className="lb-td-total">{team.total}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <style>{`
         .lb-viewer { display: flex; flex-direction: column; gap: 16px; }
@@ -149,7 +213,6 @@ export default function LeaderboardViewer() {
         }
         .lb-subtitle { font-size: 0.8rem; color: var(--text-muted, #6B7280); display: block; }
         .lb-refresh-info { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .lb-countdown { font-size: 0.8rem; color: var(--text-muted, #6B7280); font-family: monospace; }
         .lb-refresh-btn {
           padding: 6px 14px; background: rgba(0,212,255,0.12); color: var(--cyan, #00D4FF);
           border: 1px solid rgba(0,212,255,0.3); border-radius: 6px;

@@ -11,7 +11,11 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ balance: profile.data?.wallet_balance ?? 0, transactions: txns.data ?? [] })
 }
 export async function POST(req: NextRequest) {
-  const { userId, type, amount, tournamentId, reference } = await req.json()
+  // Basic validation — ensure required fields present
+  const body = await req.json().catch(() => null)
+  if (!body) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+  const { userId, type, amount, tournamentId, reference } = body
+  if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 })
   const delta = ['deposit', 'prize'].includes(type) ? amount : -amount
   const { data } = await supabase.from('wallet_transactions').insert({ user_id: userId, type, amount, status: 'completed', tournament_id: tournamentId ?? null, reference: reference ?? null }).select().single()
   return NextResponse.json({ success: true, transaction: data, delta })

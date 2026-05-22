@@ -1,6 +1,8 @@
 'use client'
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 
 type Role = 'Captain' | 'Member' | 'Substitute'
 
@@ -12,14 +14,6 @@ interface Player {
   avatarUrl?: string
 }
 
-const INITIAL_ROSTER: Player[] = [
-  { id: '1', username: 'ShadowSniper', pubgUid: 'UID-1001-ALPHA', role: 'Captain' },
-  { id: '2', username: 'GhostReaper', pubgUid: 'UID-1002-BETA', role: 'Member' },
-  { id: '3', username: 'IronHavoc', pubgUid: 'UID-1003-GAMMA', role: 'Member' },
-  { id: '4', username: 'BlitzKrieg99', pubgUid: 'UID-1004-DELTA', role: 'Member' },
-  { id: '5', username: 'VoidWalker', pubgUid: 'UID-1005-EPS', role: 'Substitute' },
-]
-
 const ROLE_COLORS: Record<Role, string> = {
   Captain: '#C8A951',
   Member: '#00D4FF',
@@ -30,18 +24,58 @@ const MAX_ACTIVE = 4
 const MAX_SUBS = 2
 
 export default function RosterManager() {
-  const [roster, setRoster] = useState<Player[]>(INITIAL_ROSTER)
+  const [roster, setRoster] = useState<Player[]>([])
   const [locked, setLocked] = useState(false)
   const [newUid, setNewUid] = useState('')
   const [newName, setNewName] = useState('')
   const [newRole, setNewRole] = useState<Role>('Member')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [teamId, setTeamId] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function fetchRoster() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { setLoading(false); return }
+
+        const { data: myTeam } = await supabase
+          .from('teams')
+          .select('id, name')
+          .eq('captain_id', user.id)
+          .limit(1)
+          .single()
+
+        if (!myTeam) { setLoading(false); return }
+
+        setTeamId(myTeam.id)
+
+        const { data: members } = await supabase
+          .from('team_members')
+          .select('*')
+          .eq('team_id', myTeam.id)
+
+        const mapped: Player[] = (members || []).map((m: any) => ({
+          id: m.id,
+          username: m.username || m.in_game_name || m.name || 'Player',
+          pubgUid: m.pubg_uid || m.pubg_id || m.uid || '',
+          role: (m.role as Role) || 'Member',
+        }))
+        setRoster(mapped)
+      } catch (err) {
+        console.error('Roster fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchRoster()
+  }, [])
 
   const activeCount = roster.filter((p) => p.role !== 'Substitute').length
   const subCount = roster.filter((p) => p.role === 'Substitute').length
 
-  function addPlayer() {
+  async function addPlayer() {
     setError('')
     setSuccess('')
     if (!newUid.trim() || !newName.trim()) {
@@ -60,24 +94,71 @@ export default function RosterManager() {
       setError(`Maximum ${MAX_ACTIVE} active players allowed.`)
       return
     }
-    const player: Player = {
-      id: Date.now().toString(),
-      username: newName.trim(),
-      pubgUid: newUid.trim(),
-      role: newRole,
+
+    try {
+      if (teamId) {
+        const { data: inserted, error: insertError } = await supabase
+          .from('team_members')
+          .insert({
+            team_id: teamId,
+            username: newName.trim(),
+            pubg_uid: newUid.trim(),
+            role: newRole,
+          })
+          .select()
+          .single()
+
+        if (insertError) throw insertError
+
+        const player: Player = {
+          id: inserted.id,
+          username: inserted.username || newName.trim(),
+          pubgUid: inserted.pubg_uid || newUid.trim(),
+          role: (inserted.role as Role) || newRole,
+        }
+        setRoster((prev) => [...prev, player])
+      } else {
+        // No team yet — local only
+        const player: Player = {
+          id: Date.now().toString(),
+          username: newName.trim(),
+          pubgUid: newUid.trim(),
+          role: newRole,
+        }
+        setRoster((prev) => [...prev, player])
+      }
+
+      setNewUid('')
+      setNewName('')
+      setNewRole('Member')
+      setSuccess(`${newName.trim()} added to roster.`)
+    } catch (err: unknown) {
+      setError('Failed to add player. Please try again.')
+      console.error(err)
     }
-    setRoster((prev) => [...prev, player])
-    setNewUid('')
-    setNewName('')
-    setNewRole('Member')
-    setSuccess(`${player.username} added to roster.`)
   }
 
-  function removePlayer(id: string) {
+  async function removePlayer(id: string) {
     if (locked) return
-    setRoster((prev) => prev.filter((p) => p.id !== id))
-    setSuccess('Player removed.')
-    setError('')
+    try {
+      if (teamId) {
+        const { error: delError } = await supabase
+          .from('team_members')
+          .delete()
+          .eq('id', id)
+        if (delError) throw delError
+      }
+      setRoster((prev) => prev.filter((p) => p.id !== id))
+      setSuccess('Player removed.')
+      setError('')
+    } catch (err: unknown) {
+      setError('Failed to remove player.')
+      console.error(err)
+    }
+  }
+
+  if (loading) {
+    return <div className='p-8 text-center text-[var(--color-muted)]'>Loading...</div>
   }
 
   return (
@@ -157,6 +238,11 @@ export default function RosterManager() {
 
       {/* Player Cards */}
       <div className="roster-grid">
+        {roster.length === 0 && (
+          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', background: 'var(--bg-card, #0F1B2E)', border: '1px solid var(--border)', borderRadius: 10 }}>
+            No players in roster yet. Add your first player above.
+          </div>
+        )}
         {roster.map((player) => (
           <div key={player.id} className="player-card">
             <div className="player-avatar">

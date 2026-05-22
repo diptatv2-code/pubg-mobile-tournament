@@ -29,13 +29,11 @@ interface ProfileViewProps {
 }
 
 export function ProfileView({ user, stats, teams, tournaments }: ProfileViewProps) {
-  // Synthetic recent rating series for the line chart
-  const ratingSeries = Array.from({ length: 10 }, (_, i) => ({
-    name: `T-${10 - i}`,
-    rating: stats
-      ? Math.round(stats.rank_points - 200 + i * 22 + Math.sin(i) * 35)
-      : 4000 + i * 30,
-  }));
+  // Without historical rating snapshots we can only plot the current point.
+  // The chart degrades to an empty state when there is nothing to show.
+  const ratingSeries = stats
+    ? [{ name: "Now", rating: stats.rank_points }]
+    : [];
 
   return (
     <div className="pb-16">
@@ -114,12 +112,19 @@ export function ProfileView({ user, stats, teams, tournaments }: ProfileViewProp
                   <h3 className="font-display text-xl font-bold uppercase tracking-wider">
                     Rating Progress
                   </h3>
-                  <span className="flex items-center gap-1 text-xs uppercase tracking-wider text-[var(--color-success)] font-bold">
-                    <TrendingUp className="h-3.5 w-3.5" />
-                    +120 last 10
-                  </span>
+                  {ratingSeries.length > 1 && (
+                    <span className="flex items-center gap-1 text-xs uppercase tracking-wider text-[var(--color-success)] font-bold">
+                      <TrendingUp className="h-3.5 w-3.5" />
+                      Last {ratingSeries.length} matches
+                    </span>
+                  )}
                 </div>
                 <div className="h-[260px]">
+                  {ratingSeries.length === 0 ? (
+                    <div className="h-full grid place-items-center text-sm text-[var(--color-muted)]">
+                      No rating history yet. Play tournament matches to build a graph.
+                    </div>
+                  ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={ratingSeries}>
                       <defs>
@@ -161,6 +166,7 @@ export function ProfileView({ user, stats, teams, tournaments }: ProfileViewProp
                       />
                     </LineChart>
                   </ResponsiveContainer>
+                  )}
                 </div>
               </div>
 

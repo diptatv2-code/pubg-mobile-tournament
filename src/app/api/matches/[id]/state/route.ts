@@ -7,7 +7,10 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 }
 export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params
-  const { status, map, perspective } = await req.json()
+  // Basic validation — ensure required fields present
+  const body = await req.json().catch(() => null)
+  if (!body) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+  const { status, map, perspective } = body
   const { data: match } = await supabase.from('matches').select('status').eq('id', id).single()
   if (!match) return NextResponse.json({ error: 'Match not found' }, { status: 404 })
   if (!VALID_TRANSITIONS[match.status]?.includes(status))

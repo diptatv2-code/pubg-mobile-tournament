@@ -1,11 +1,5 @@
 import { notFound } from "next/navigation";
-import {
-  getTournament,
-  getUser,
-  getTeamsForTournament,
-  getMatchesForTournament,
-  getLeaderboard,
-} from "@/lib/mock-data";
+import { supabaseAdmin } from "@/lib/supabase";
 import { TournamentDetail } from "./TournamentDetail";
 
 export async function generateMetadata({
@@ -14,7 +8,11 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const t = getTournament(id);
+  const { data: t } = await supabaseAdmin
+    .from("tournaments")
+    .select("*")
+    .eq("id", id)
+    .single();
   if (!t) return { title: "Tournament not found" };
   return {
     title: `${t.title} — PUBG Mobile Tournament`,
@@ -28,21 +26,32 @@ export default async function TournamentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const tournament = getTournament(id);
+
+  const { data: tournament } = await supabaseAdmin
+    .from("tournaments")
+    .select("*")
+    .eq("id", id)
+    .single();
+
   if (!tournament) notFound();
 
-  const organizer = getUser(tournament.organizer_id);
-  const teams = getTeamsForTournament(tournament.id);
-  const matches = getMatchesForTournament(tournament.id);
-  const leaderboard = getLeaderboard(tournament.id);
+  const { data: teams } = await supabaseAdmin
+    .from("teams")
+    .select("*, team_members(*)")
+    .eq("tournament_id", id);
+
+  const { data: matches } = await supabaseAdmin
+    .from("matches")
+    .select("*")
+    .eq("tournament_id", id)
+    .order("match_number");
 
   return (
     <TournamentDetail
       tournament={tournament}
-      organizer={organizer}
-      teams={teams}
-      matches={matches}
-      leaderboard={leaderboard}
+      teams={teams || []}
+      matches={matches || []}
+      leaderboard={[]}
     />
   );
 }

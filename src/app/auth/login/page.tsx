@@ -143,7 +143,7 @@ export default function LoginPage() {
                   type="email"
                   required
                   autoComplete="email"
-                  placeholder="commander@battlezone.gg"
+                  placeholder="player@example.com"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                 />
@@ -197,19 +197,6 @@ export default function LoginPage() {
                 style={{ width: '100%', padding: '14px 32px', fontSize: 14, marginTop: 4, opacity: submitting ? 0.7 : 1 }}
               >
                 {submitting ? 'Signing in…' : 'Sign In →'}
-              </button>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '8px 0' }}>
-                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.18em', fontFamily: 'var(--font-heading)' }}>OR</span>
-                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-              </div>
-
-              <button type="button" className="btn-outline" style={{ width: '100%', padding: '12px 24px', fontSize: 13 }}>
-                Continue with Google
-              </button>
-              <button type="button" className="btn-outline" style={{ width: '100%', padding: '12px 24px', fontSize: 13 }}>
-                Continue with Discord
               </button>
             </form>
           )}

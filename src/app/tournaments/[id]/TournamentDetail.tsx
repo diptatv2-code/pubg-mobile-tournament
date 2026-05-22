@@ -30,6 +30,7 @@ import type {
   User,
   LeaderboardEntry,
 } from "@/types/database";
+import { supabase } from "@/lib/supabase";
 
 const modeIcons = { solo: Crown, duo: Swords, squad: Users };
 
@@ -59,6 +60,37 @@ export function TournamentDetail({
       ? buildSingleElimBracket(teams)
       : [];
   const totalRounds = Math.max(1, Math.ceil(Math.log2(Math.max(2, teams.length))));
+
+  const handleRegister = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { window.location.href = '/auth/login'; return; }
+    // Check if already registered
+    const { data: existing } = await supabase.from('teams').select('id').eq('tournament_id', t.id).eq('captain_id', user.id).single();
+    if (existing) { alert('Already registered!'); return; }
+    // Get user profile for team name
+    const { data: profile } = await supabase.from('profiles').select('username').eq('id', user.id).single();
+    const teamName = profile?.username ? `${profile.username}'s Team` : 'New Team';
+    // Create team
+    const { data: team } = await supabase.from('teams').insert({
+      tournament_id: t.id,
+      name: teamName,
+      tag: (profile?.username || 'TEAM').substring(0, 4).toUpperCase(),
+      captain_id: user.id,
+      status: 'registered',
+    }).select().single();
+    if (team) {
+      // Add captain as team member
+      await supabase.from('team_members').insert({
+        team_id: team.id,
+        user_id: user.id,
+        role: 'captain',
+        pubg_id: '',
+        pubg_name: profile?.username || 'Player',
+      });
+      alert('Registered successfully! Check your team in the Hub.');
+      window.location.reload();
+    }
+  };
 
   return (
     <div className="pb-16">
@@ -160,7 +192,7 @@ export function TournamentDetail({
           {/* CTAs */}
           <div className="mt-8 flex flex-wrap gap-3">
             {isOpen && (
-              <Button variant="primary" size="lg">
+              <Button variant="primary" size="lg" onClick={handleRegister}>
                 <Trophy className="h-4 w-4" /> Register Team
               </Button>
             )}
@@ -439,25 +471,23 @@ function RuleCard({ title, body }: { title: string; body: string }) {
 }
 
 function buildSingleElimBracket(teams: Team[]): BracketMatch[] {
-  // Pad to nearest power of 2
+  // Pad to nearest power of 2 so the bracket structure is balanced.
   const n = Math.max(2, 1 << Math.ceil(Math.log2(Math.max(2, teams.length))));
   const padded: (Team | null)[] = [...teams];
   while (padded.length < n) padded.push(null);
 
   const matches: BracketMatch[] = [];
   let id = 1;
-  // Round 1
   for (let i = 0; i < n; i += 2) {
     const t1 = padded[i];
     const t2 = padded[i + 1];
     matches.push({
       id: `b-${id++}`,
       round: 1,
-      team1: t1 ? { name: t1.name, score: Math.floor(Math.random() * 3) + 1, winner: i % 4 === 0 } : null,
-      team2: t2 ? { name: t2.name, score: Math.floor(Math.random() * 3) + 1, winner: i % 4 !== 0 } : null,
+      team1: t1 ? { name: t1.name, score: 0 } : null,
+      team2: t2 ? { name: t2.name, score: 0 } : null,
     });
   }
-  // Subsequent rounds (placeholders)
   let roundCount = n / 2;
   let round = 2;
   while (roundCount > 1) {

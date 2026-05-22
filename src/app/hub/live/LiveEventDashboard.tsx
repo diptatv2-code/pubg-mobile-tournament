@@ -1,25 +1,90 @@
 'use client'
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState, useEffect } from 'react'
 import { CountdownTimer } from '@/components/tournament/CountdownTimer'
+import { supabase } from '@/lib/supabase'
 
 type MatchStatus = 'Scheduled' | 'Checking In' | 'Live' | 'Completed'
 
-const ROOM_CODE_REVEAL_OFFSET_MS = 30_000 // 30 seconds from mount for demo
-
 export default function LiveEventDashboard() {
-  const [revealTime] = useState<Date>(() => new Date(Date.now() + ROOM_CODE_REVEAL_OFFSET_MS))
   const [roomCodeVisible, setRoomCodeVisible] = useState(false)
   const [matchStatus, setMatchStatus] = useState<MatchStatus>('Scheduled')
+  const [roomCode, setRoomCode] = useState('')
+  const [roomPwd, setRoomPwd] = useState('')
+  const [tournamentTitle, setTournamentTitle] = useState('—')
+  const [tournamentMap, setTournamentMap] = useState('—')
+  const [tournamentMode, setTournamentMode] = useState('—')
+  const [revealTime, setRevealTime] = useState<Date>(() => new Date(Date.now() + 60_000))
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (roomCodeVisible) {
-      // Simulate status progression after room code reveal
-      const t1 = setTimeout(() => setMatchStatus('Checking In'), 2000)
-      const t2 = setTimeout(() => setMatchStatus('Live'), 8000)
-      return () => { clearTimeout(t1); clearTimeout(t2) }
+    async function fetchLiveData() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { setLoading(false); return }
+
+        const { data: myTeams } = await supabase
+          .from('teams')
+          .select('id, tournament_id, tournaments(title, status, map, mode)')
+          .eq('captain_id', user.id)
+
+        const myTeam = (myTeams || []).find(
+          (t: any) => t.tournaments && (t.tournaments.status === 'ongoing' || t.tournaments.status === 'active' || t.tournaments.status === 'live')
+        ) || (myTeams && myTeams.length > 0 ? myTeams[0] : null)
+
+        if (myTeam) {
+          const t = (myTeam as any).tournaments
+          if (t) {
+            setTournamentTitle(t.title || '—')
+            setTournamentMap(t.map || '—')
+            setTournamentMode(t.mode || '—')
+            if (t.status === 'ongoing' || t.status === 'active' || t.status === 'live') {
+               
+              setMatchStatus('Live')
+            }
+          }
+
+          // Get room code for the team's tournament
+          const tournamentId = (myTeam as any).tournament_id
+          if (tournamentId) {
+            const { data: room } = await supabase
+              .from('room_codes')
+              .select('*')
+              .eq('tournament_id', tournamentId)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single()
+
+            if (room) {
+              setRoomCode(room.room_code || '')
+              setRoomPwd(room.room_password || '')
+              const isVisible = !!room.distributed_at
+              setRoomCodeVisible(isVisible)
+              if (!isVisible && room.reveal_at) {
+                setRevealTime(new Date(room.reveal_at))
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('LiveEventDashboard fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [roomCodeVisible])
+    fetchLiveData()
+  }, [])
+
+  // Once the room code is visible the match has at minimum reached the
+  // check-in phase. Real Live/Completed transitions are driven by the
+  // tournament status loaded in the fetch effect above.
+  useEffect(() => {
+    if (roomCodeVisible && matchStatus === 'Scheduled') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMatchStatus('Checking In')
+    }
+  }, [roomCodeVisible, matchStatus])
 
   const statusConfig: Record<MatchStatus, { color: string; bg: string; pulse: boolean; label: string }> = {
     Scheduled: { color: '#B5BCC9', bg: 'rgba(181,188,201,0.1)', pulse: false, label: '🗓 Scheduled' },
@@ -29,6 +94,10 @@ export default function LiveEventDashboard() {
   }
 
   const sc = statusConfig[matchStatus]
+
+  if (loading) {
+    return <div className='p-8 text-center text-[var(--color-muted)]'>Loading...</div>
+  }
 
   return (
     <div className="live-dashboard">
@@ -44,8 +113,8 @@ export default function LiveEventDashboard() {
           </span>
         </div>
         <div className="live-match-info">
-          <span className="live-match-name">PMCO Spring Split — Round 3</span>
-          <span className="live-match-meta">Erangel · Squad · 100 teams</span>
+          <span className="live-match-name">{tournamentTitle}</span>
+          <span className="live-match-meta">{tournamentMap} · {tournamentMode}</span>
         </div>
       </div>
 
@@ -64,7 +133,12 @@ export default function LiveEventDashboard() {
           </div>
         ) : (
           <div className="live-code-reveal">
-            <div className="live-code-badge">ROOM-2024-XYZ</div>
+            <div className="live-code-badge">{roomCode || '—'}</div>
+            {roomPwd && (
+              <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                Password: <span style={{ fontFamily: 'monospace', color: 'var(--cyan)' }}>{roomPwd}</span>
+              </div>
+            )}
             <div className="live-code-hint">Share this code only with your team. Do not post publicly.</div>
           </div>
         )}
@@ -74,19 +148,19 @@ export default function LiveEventDashboard() {
       <div className="live-info-grid">
         <div className="live-info-tile">
           <span className="live-info-label">Tournament</span>
-          <span className="live-info-value">PMCO Spring Split</span>
+          <span className="live-info-value">{tournamentTitle}</span>
         </div>
         <div className="live-info-tile">
           <span className="live-info-label">Map</span>
-          <span className="live-info-value">🗺️ Erangel</span>
+          <span className="live-info-value">🗺️ {tournamentMap}</span>
         </div>
         <div className="live-info-tile">
           <span className="live-info-label">Mode</span>
-          <span className="live-info-value">TPP Squad</span>
+          <span className="live-info-value">{tournamentMode}</span>
         </div>
         <div className="live-info-tile">
           <span className="live-info-label">Your Slot</span>
-          <span className="live-info-value" style={{ color: '#C8A951' }}>#07</span>
+          <span className="live-info-value" style={{ color: '#C8A951' }}>—</span>
         </div>
       </div>
 

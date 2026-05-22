@@ -8,7 +8,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ roster: data ?? [] })
 }
 export async function POST(req: NextRequest) {
-  const { teamId, playerId, isSubstitute = false } = await req.json()
+  // Basic validation — ensure required fields present
+  const body = await req.json().catch(() => null)
+  if (!body) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+  const { teamId, playerId, isSubstitute = false } = body
   if (!teamId || !playerId) return NextResponse.json({ error: 'teamId and playerId required' }, { status: 400 })
   const { data: existing } = await supabase.from('roster').select('id, is_substitute').eq('team_id', teamId)
   const active = existing?.filter(r => !r.is_substitute).length ?? 0

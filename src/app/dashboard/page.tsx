@@ -1,38 +1,45 @@
 'use client'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AnimatedCounter from '@/components/home/AnimatedCounter'
+import { supabase } from '@/lib/supabase'
 
-const STATS = [
-  { label: 'Tournaments Played', value: 24, color: 'var(--gold-bright)', icon: '🎮' },
-  { label: 'Total Wins', value: 7, color: 'var(--cyan-bright)', icon: '🏆' },
-  { label: 'Total Kills', value: 342, color: 'var(--red-bright)', icon: '⚔️' },
-  { label: 'Wallet Balance', value: 240, prefix: '$', color: 'var(--green)', icon: '💰' },
-]
-
-const ACTIVE = {
-  id: 'pmgc-asia',
-  title: 'PMGC Qualifier Series — Asia',
-  prize: 10000,
-  map: 'Erangel',
-  mode: 'Squad TPP',
-  nextMatchIn: '2H 18M',
-  team: 'Alpha Wolves',
-  placement: 3,
+interface StatItem {
+  label: string
+  value: number
+  color: string
+  icon: string
+  prefix?: string
 }
 
-const RECENT = [
-  { id: '1', title: 'PMGC Qualifier — Match 3', placement: 3, kills: 18, pts: 53, date: 'May 7', map: 'Erangel' },
-  { id: '2', title: 'Asia Open Champ Finals', placement: 1, kills: 24, pts: 68, date: 'May 4', map: 'Miramar' },
-  { id: '3', title: 'Weekend Blitz #12', placement: 8, kills: 12, pts: 27, date: 'May 2', map: 'Sanhok' },
-  { id: '4', title: 'Mobile Pro League S7', placement: 5, kills: 16, pts: 42, date: 'Apr 28', map: 'Vikendi' },
-  { id: '5', title: 'Community Cup #11', placement: 2, kills: 21, pts: 58, date: 'Apr 24', map: 'Erangel' },
-]
+interface ActiveTournament {
+  id: string
+  title: string
+  prize: number
+  map: string
+  mode: string
+  nextMatchIn: string
+  team: string
+  placement: number
+}
+
+interface RecentMatch {
+  id: string
+  title: string
+  placement: number
+  kills: number
+  pts: number
+  date: string
+  map: string
+}
 
 const ACTIONS = [
   { href: '/tournaments', label: 'Browse Tournaments', desc: 'Find your next battle', icon: '🎯' },
   { href: '/tournaments/create', label: 'Host Tournament', desc: 'Run your own event', icon: '🏟️' },
-  { href: '/teams', label: 'Manage Team', desc: 'Update roster and tactics', icon: '👥' },
-  { href: '/profile', label: 'Edit Profile', desc: 'Update PUBG UID & info', icon: '⚙️' },
+  { href: '/hub/roster', label: 'Manage Team', desc: 'Update roster and tactics', icon: '👥' },
+  { href: '/hub/wallet', label: 'Wallet', desc: 'Deposits, withdrawals & history', icon: '💼' },
 ]
 
 function placementColor(p: number): string {
@@ -43,6 +50,119 @@ function placementColor(p: number): string {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<StatItem[]>([
+    { label: 'Tournaments Played', value: 0, color: 'var(--gold-bright)', icon: '🎮' },
+    { label: 'Total Wins', value: 0, color: 'var(--cyan-bright)', icon: '🏆' },
+    { label: 'Total Kills', value: 0, color: 'var(--red-bright)', icon: '⚔️' },
+    { label: 'Wallet Balance', value: 0, prefix: '$', color: 'var(--green)', icon: '💰' },
+  ])
+  const [active, setActive] = useState<ActiveTournament | null>(null)
+  const [recent, setRecent] = useState<RecentMatch[]>([])
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          router.push('/auth/login')
+          return
+        }
+
+        const userId = user.id
+
+        // Fetch profile (for future use)
+        await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single()
+
+        // Fetch user's teams with tournaments
+        const { data: myTeams } = await supabase
+          .from('teams')
+          .select('*, tournaments(*)')
+          .eq('captain_id', userId)
+
+        const teamIds = (myTeams || []).map((t: any) => t.id)
+
+        // Fetch recent match results
+        let recentResults: any[] = []
+        if (teamIds.length > 0) {
+          const { data: resultsData } = await supabase
+            .from('match_results')
+            .select('*, matches(*, tournaments(*))')
+            .in('team_id', teamIds)
+            .order('created_at', { ascending: false })
+            .limit(5)
+          recentResults = resultsData || []
+        }
+
+        // Compute stats
+        const totalPlayed = recentResults.length
+        const totalWins = recentResults.filter((r: any) => r.placement === 1).length
+        const totalKills = recentResults.reduce((sum: number, r: any) => sum + (r.kills || 0), 0)
+
+        // Wallet balance from wallet_transactions
+        const { data: walletTxns } = await supabase
+          .from('wallet_transactions')
+          .select('amount')
+          .eq('user_id', userId)
+        const walletBalance = (walletTxns || []).reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0)
+
+        setStats([
+          { label: 'Tournaments Played', value: totalPlayed, color: 'var(--gold-bright)', icon: '🎮' },
+          { label: 'Total Wins', value: totalWins, color: 'var(--cyan-bright)', icon: '🏆' },
+          { label: 'Total Kills', value: totalKills, color: 'var(--red-bright)', icon: '⚔️' },
+          { label: 'Wallet Balance', value: Math.max(0, walletBalance), prefix: '$', color: 'var(--green)', icon: '💰' },
+        ])
+
+        // Active tournament: find first ongoing team tournament
+        const activeTeam = (myTeams || []).find(
+          (t: any) => t.tournaments && (t.tournaments.status === 'ongoing' || t.tournaments.status === 'active')
+        )
+        if (activeTeam) {
+          setActive({
+            id: activeTeam.tournament_id || activeTeam.tournaments?.id || '',
+            title: activeTeam.tournaments?.title || 'Active Tournament',
+            prize: activeTeam.tournaments?.prize_pool || 0,
+            map: activeTeam.tournaments?.map || 'Erangel',
+            mode: activeTeam.tournaments?.mode || 'Squad TPP',
+            nextMatchIn: '—',
+            team: activeTeam.name || 'Your Team',
+            placement: 0,
+          })
+        }
+
+        // Recent matches
+        const mapped: RecentMatch[] = recentResults.map((r: any, idx: number) => ({
+          id: r.id || String(idx),
+          title: r.matches?.tournaments?.title || r.matches?.title || 'Match',
+          placement: r.placement || 0,
+          kills: r.kills || 0,
+          pts: r.total_points || r.points || 0,
+          date: r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
+          map: r.matches?.tournaments?.map || r.matches?.map || '—',
+        }))
+        setRecent(mapped)
+      } catch (err) {
+        console.error('Dashboard fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [router])
+
+  if (loading) {
+    return (
+      <div className='p-8 text-center text-[var(--color-muted)]' style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        Loading...
+      </div>
+    )
+  }
+
   return (
     <div style={{ minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
       {/* Decorative bg */}
@@ -61,7 +181,7 @@ export default function DashboardPage() {
                 Welcome Back, <span className="gradient-gold">Commander</span>
               </h1>
               <p style={{ color: 'var(--text-secondary)', fontSize: 15 }}>
-                Last sign-in: Today, 14:32 IST · Rank #847 globally
+                Last sign-in: Today · Rank #— globally
               </p>
             </div>
             <div className="card-glass" style={{
@@ -86,7 +206,7 @@ export default function DashboardPage() {
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 36,
           }} className="dash-stats">
-            {STATS.map((s, i) => (
+            {stats.map((s, i) => (
               <div key={s.label} className="card-glass animate-fade-up" style={{
                 padding: 24, position: 'relative', overflow: 'hidden',
                 animationDelay: `${i * 0.1}s`,
@@ -124,47 +244,62 @@ export default function DashboardPage() {
               }}>
                 <div className="hex-grid" aria-hidden style={{ opacity: 0.4 }} />
                 <div style={{ position: 'relative', zIndex: 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-                    <div>
-                      <span className="live-badge">ACTIVE NOW</span>
-                    </div>
-                    <span style={{
-                      fontFamily: 'var(--font-heading)', fontSize: 13, fontWeight: 700,
-                      color: 'var(--orange)', letterSpacing: '0.14em', textTransform: 'uppercase',
-                    }}>
-                      Next match in {ACTIVE.nextMatchIn}
-                    </span>
-                  </div>
+                  {active ? (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+                        <div>
+                          <span className="live-badge">ACTIVE NOW</span>
+                        </div>
+                        <span style={{
+                          fontFamily: 'var(--font-heading)', fontSize: 13, fontWeight: 700,
+                          color: 'var(--orange)', letterSpacing: '0.14em', textTransform: 'uppercase',
+                        }}>
+                          Next match in {active.nextMatchIn}
+                        </span>
+                      </div>
 
-                  <h2 style={{ fontSize: 26, fontWeight: 700, marginBottom: 8 }}>{ACTIVE.title}</h2>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
-                    <span className="tag tag-cyan">{ACTIVE.map}</span>
-                    <span className="tag tag-gold">{ACTIVE.mode}</span>
-                  </div>
+                      <h2 style={{ fontSize: 26, fontWeight: 700, marginBottom: 8 }}>{active.title}</h2>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
+                        <span className="tag tag-cyan">{active.map}</span>
+                        <span className="tag tag-gold">{active.mode}</span>
+                      </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
-                    <div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.16em', fontFamily: 'var(--font-heading)' }}>Prize</div>
-                      <div className="gradient-gold" style={{ fontFamily: 'var(--font-heading)', fontSize: 24, fontWeight: 700, marginTop: 4 }}>${ACTIVE.prize.toLocaleString()}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.16em', fontFamily: 'var(--font-heading)' }}>Team</div>
-                      <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 600, marginTop: 4 }}>{ACTIVE.team}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.16em', fontFamily: 'var(--font-heading)' }}>Current</div>
-                      <div style={{ fontFamily: 'var(--font-heading)', fontSize: 24, fontWeight: 700, color: placementColor(ACTIVE.placement), marginTop: 4 }}>#{ACTIVE.placement}</div>
-                    </div>
-                  </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+                        <div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.16em', fontFamily: 'var(--font-heading)' }}>Prize</div>
+                          <div className="gradient-gold" style={{ fontFamily: 'var(--font-heading)', fontSize: 24, fontWeight: 700, marginTop: 4 }}>${active.prize.toLocaleString()}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.16em', fontFamily: 'var(--font-heading)' }}>Team</div>
+                          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 600, marginTop: 4 }}>{active.team}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.16em', fontFamily: 'var(--font-heading)' }}>Current</div>
+                          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 24, fontWeight: 700, color: placementColor(active.placement), marginTop: 4 }}>
+                            {active.placement > 0 ? `#${active.placement}` : '—'}
+                          </div>
+                        </div>
+                      </div>
 
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    <Link href={`/tournaments/${ACTIVE.id}`} className="btn-primary" style={{ padding: '12px 28px', fontSize: 13 }}>
-                      Open Match Hub →
-                    </Link>
-                    <Link href={`/tournaments/${ACTIVE.id}#leaderboard`} className="btn-outline" style={{ padding: '12px 28px', fontSize: 13 }}>
-                      Live Leaderboard
-                    </Link>
-                  </div>
+                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                        <Link href={`/tournaments/${active.id}`} className="btn-primary" style={{ padding: '12px 28px', fontSize: 13 }}>
+                          Open Match Hub →
+                        </Link>
+                        <Link href={`/tournaments/${active.id}#leaderboard`} className="btn-outline" style={{ padding: '12px 28px', fontSize: 13 }}>
+                          Live Leaderboard
+                        </Link>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ padding: '24px 0', textAlign: 'center' }}>
+                      <div style={{ fontSize: 40, marginBottom: 12 }}>🎮</div>
+                      <div style={{ fontFamily: 'var(--font-heading)', fontSize: 18, fontWeight: 700, marginBottom: 8 }}>No Active Tournament</div>
+                      <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 20 }}>Join a tournament to see your active match here.</div>
+                      <Link href="/tournaments" className="btn-primary" style={{ padding: '12px 28px', fontSize: 13 }}>
+                        Browse Tournaments →
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -198,43 +333,49 @@ export default function DashboardPage() {
           <div className="card-glass" style={{ padding: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
               <h3 style={{ fontSize: 14, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.16em' }}>Recent Matches</h3>
-              <Link href="/profile/matches" style={{ fontSize: 13, color: 'var(--gold-bright)', fontFamily: 'var(--font-heading)', letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none' }}>
+              <Link href="/hub/schedule" style={{ fontSize: 13, color: 'var(--gold-bright)', fontFamily: 'var(--font-heading)', letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none' }}>
                 View All →
               </Link>
             </div>
 
-            <div style={{ overflowX: 'auto', margin: '0 -8px' }} className="no-scrollbar">
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Tournament', 'Map', 'Place', 'Kills', 'Points', 'Date'].map(h => (
-                      <th key={h} style={{
-                        textAlign: 'left', padding: '12px 8px',
-                        fontSize: 11, color: 'var(--text-muted)',
-                        textTransform: 'uppercase', letterSpacing: '0.14em',
-                        fontFamily: 'var(--font-heading)', fontWeight: 600,
-                      }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {RECENT.map(r => (
-                    <tr key={r.id} className="dash-row-hover" style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '14px 8px', fontFamily: 'var(--font-heading)', fontSize: 14, fontWeight: 600 }}>{r.title}</td>
-                      <td style={{ padding: '14px 8px' }}>
-                        <span className="tag tag-cyan">{r.map}</span>
-                      </td>
-                      <td style={{ padding: '14px 8px', fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 700, color: placementColor(r.placement) }}>
-                        #{r.placement}
-                      </td>
-                      <td style={{ padding: '14px 8px', fontSize: 14, color: 'var(--text)' }}>{r.kills}</td>
-                      <td style={{ padding: '14px 8px', fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 700, color: 'var(--cyan-bright)' }}>{r.pts}</td>
-                      <td style={{ padding: '14px 8px', fontSize: 13, color: 'var(--text-muted)' }}>{r.date}</td>
+            {recent.length === 0 ? (
+              <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
+                No recent matches yet.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto', margin: '0 -8px' }} className="no-scrollbar">
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                      {['Tournament', 'Map', 'Place', 'Kills', 'Points', 'Date'].map(h => (
+                        <th key={h} style={{
+                          textAlign: 'left', padding: '12px 8px',
+                          fontSize: 11, color: 'var(--text-muted)',
+                          textTransform: 'uppercase', letterSpacing: '0.14em',
+                          fontFamily: 'var(--font-heading)', fontWeight: 600,
+                        }}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {recent.map(r => (
+                      <tr key={r.id} className="dash-row-hover" style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '14px 8px', fontFamily: 'var(--font-heading)', fontSize: 14, fontWeight: 600 }}>{r.title}</td>
+                        <td style={{ padding: '14px 8px' }}>
+                          <span className="tag tag-cyan">{r.map}</span>
+                        </td>
+                        <td style={{ padding: '14px 8px', fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 700, color: placementColor(r.placement) }}>
+                          #{r.placement}
+                        </td>
+                        <td style={{ padding: '14px 8px', fontSize: 14, color: 'var(--text)' }}>{r.kills}</td>
+                        <td style={{ padding: '14px 8px', fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 700, color: 'var(--cyan-bright)' }}>{r.pts}</td>
+                        <td style={{ padding: '14px 8px', fontSize: 13, color: 'var(--text-muted)' }}>{r.date}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </section>

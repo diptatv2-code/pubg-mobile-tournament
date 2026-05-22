@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /hub/
+Disallow: /dashboard/
+
+Sitemap: https://pubgmobiletournament.com/sitemap.xml

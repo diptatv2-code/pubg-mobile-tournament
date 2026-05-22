@@ -2,6 +2,7 @@ import { generateGroups, Team } from './tournament-engine'
 export type BracketMatch = { id: string; tournamentId: string; round: number; matchNumber: number; teams: string[]; status: string; map?: string; perspective?: string }
 export type Bracket = { tournamentId: string; type: string; rounds: BracketMatch[][]; currentRound: number; completed: boolean }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function createBracket(tournamentId: string, type: string, teams: Team[], _config: Record<string, unknown>): Bracket {
   const groups = generateGroups(teams, 16)
   const round1: BracketMatch[] = groups.map((g, i) => ({

@@ -1,6 +1,5 @@
-import { notFound } from "next/navigation";
-import { getUserByUsername, mockPlayerStats, mockTournaments, mockTeams } from "@/lib/mock-data";
-import { ProfileView } from "./ProfileView";
+import { supabaseAdmin } from '@/lib/supabase';
+import { ProfileView } from './ProfileView';
 
 export async function generateMetadata({
   params,
@@ -8,36 +7,16 @@ export async function generateMetadata({
   params: Promise<{ username: string }>;
 }) {
   const { username } = await params;
-  const user = getUserByUsername(username);
-  if (!user) return { title: "Player not found" };
+  const { data: user } = await supabaseAdmin.from('profiles').select('username').eq('username', username).single();
+  if (!user) return { title: 'Player not found' };
   return { title: `${user.username} — PUBG Mobile Tournament` };
 }
 
-export default async function ProfilePage({
-  params,
-}: {
-  params: Promise<{ username: string }>;
-}) {
+export default async function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
-  const user = getUserByUsername(username);
-  if (!user) notFound();
-
-  const stats = mockPlayerStats[user.id];
-
-  // Find teams + tournaments user is part of
-  const playerTeams = mockTeams.filter((t) =>
-    t.members.some((m) => m.user_id === user.id),
-  );
-  const tournaments = playerTeams
-    .map((tm) => mockTournaments.find((t) => t.id === tm.tournament_id))
-    .filter((t): t is NonNullable<typeof t> => Boolean(t));
-
-  return (
-    <ProfileView
-      user={user}
-      stats={stats}
-      teams={playerTeams}
-      tournaments={tournaments}
-    />
-  );
+  const { data: user } = await supabaseAdmin.from('profiles').select('*').eq('username', username).single();
+  if (!user) return <div className='p-8 text-center'>Profile not found</div>;
+  const { data: teams } = await supabaseAdmin.from('teams').select('*, tournaments(*)').eq('captain_id', user.id);
+  const { data: tournaments } = await supabaseAdmin.from('tournaments').select('*').eq('organizer_id', user.id);
+  return <ProfileView user={user} teams={teams || []} tournaments={tournaments || []} />;
 }

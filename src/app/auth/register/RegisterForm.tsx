@@ -6,8 +6,8 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Mail, Lock, User, Hash, Trophy } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -35,16 +35,34 @@ export function RegisterForm() {
     resolver: zodResolver(schema),
   });
   const [done, setDone] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const onSubmit = async () => {
-    await new Promise((r) => setTimeout(r, 700));
+  const onSubmit = async (values: FormValues) => {
+    const { data, error } = await supabase.auth.signUp({
+      email: values.email,
+      password: values.password,
+    });
+    if (error) {
+      setErrorMsg(error.message);
+      return;
+    }
+    if (data.user) {
+      await supabase.from("profiles").upsert({
+        id: data.user.id,
+        email: values.email,
+        username: values.username,
+        pubg_id: values.pubg_id,
+        pubg_name: values.pubg_name,
+        role: "player",
+      });
+    }
     setDone(true);
   };
 
   if (done) {
     return (
       <div className="rounded-md border border-[var(--color-success)]/30 bg-[var(--color-success)]/10 p-4 text-sm text-[var(--color-success)]">
-        Account created (mocked). Welcome to the pubgmobiletournament.
+        Check your email to confirm your account.
       </div>
     );
   }
@@ -145,6 +163,12 @@ export function RegisterForm() {
         )}
       </div>
 
+      {errorMsg && (
+        <p className="rounded-md border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/10 p-3 text-sm text-[var(--color-danger)]">
+          {errorMsg}
+        </p>
+      )}
+
       <Button
         type="submit"
         variant="primary"
@@ -153,20 +177,6 @@ export function RegisterForm() {
         disabled={isSubmitting}
       >
         {isSubmitting ? "Creating…" : "Create Account"}
-      </Button>
-
-      <div className="relative my-2">
-        <Separator />
-        <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-[var(--color-surface)] px-3 text-[10px] uppercase tracking-[0.3em] text-[var(--color-muted-2)]">
-          Or
-        </span>
-      </div>
-
-      <Button type="button" variant="outline" size="lg" className="w-full">
-        Continue with Google
-      </Button>
-      <Button type="button" variant="outline" size="lg" className="w-full">
-        Continue with Discord
       </Button>
 
       <p className="text-[11px] text-[var(--color-muted-2)] leading-relaxed">

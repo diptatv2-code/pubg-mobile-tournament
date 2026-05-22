@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js'
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 import type { Tournament } from '@/types/database'
 
+
 const FILTERS = [
   { key: 'all', label: 'All', icon: '⊕' },
   { key: 'live', label: 'Live', icon: '🔴' },
@@ -27,6 +28,7 @@ const PAGE_SIZE = 6
 export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [filter, setFilter] = useState<string>('all')
   const [map, setMap] = useState('All Maps')
   const [mode, setMode] = useState('All Modes')
@@ -39,8 +41,12 @@ export default function TournamentsPage() {
       .from('tournaments')
       .select('*')
       .order('starts_at', { ascending: true })
-      .then(({ data }: { data: unknown }) => {
-        setTournaments((data as Tournament[]) || [])
+      .then(({ data, error: fetchError }: { data: unknown; error: unknown }) => {
+        if (fetchError) {
+          setError(true)
+        } else {
+          setTournaments((data as Tournament[]) || [])
+        }
         setLoading(false)
       })
   }, [])
@@ -130,7 +136,7 @@ export default function TournamentsPage() {
             })}
           </div>
 
-          {/* Filters row */}
+          {/* Filters row — BUG-33: single sort select */}
           <div style={{
             display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 32,
             padding: 16,
@@ -160,60 +166,81 @@ export default function TournamentsPage() {
             <select className="input" value={mode} onChange={e => { setMode(e.target.value); setShown(PAGE_SIZE) }} style={{ flex: '0 0 180px' }}>
               {MODES.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
-            <select className="input" value={sort} onChange={e => setSort(e.target.value)} style={{ flex: '0 0 180px' }}>
-              {SORTS.map(s => <option key={s.v} value={s.v}>Sort: {s.l}</option>)}
+            {/* BUG-33: Single sort select — options labeled by content, not triple "Sort:" prefix */}
+            <select className="input" aria-label="Sort by" value={sort} onChange={e => setSort(e.target.value)} style={{ flex: '0 0 180px' }}>
+              <option value="" disabled>Sort by…</option>
+              {SORTS.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
             </select>
             <Link href="/tournaments/create" className="btn-primary" style={{ flexShrink: 0 }}>
               + Host
             </Link>
           </div>
 
-          {/* Results count */}
-          <div style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            marginBottom: 24, paddingBottom: 16, borderBottom: '1px solid var(--border)',
-          }}>
-            <div style={{ fontSize: 14, color: 'var(--text-secondary)', fontFamily: 'var(--font-heading)', letterSpacing: '0.06em' }}>
-              <strong style={{ color: 'var(--gold-bright)', fontSize: 18, marginRight: 6 }}>{filtered.length}</strong>
-              tournament{filtered.length !== 1 ? 's' : ''} found
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.16em', fontFamily: 'var(--font-heading)' }}>
-              Showing {visible.length} of {filtered.length}
-            </div>
-          </div>
-
-          {/* Loading state */}
+          {/* BUG-04 + BUG-25: States — loading skeleton, empty, error, results */}
           {loading ? (
+            /* Loading: skeleton cards */
+            <div className="grid-tournaments" style={{ marginBottom: 40 }}>
+              {[0, 1, 2].map(i => (
+                <div key={i} style={{
+                  height: 320,
+                  borderRadius: 12,
+                  background: 'rgba(15, 27, 46, 0.6)',
+                  border: '1px solid var(--border)',
+                  animation: 'pulse 1.5s ease-in-out infinite',
+                  opacity: 0.7,
+                }} />
+              ))}
+              <style>{`@keyframes pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 0.4; } }`}</style>
+            </div>
+          ) : error ? (
+            /* Error state */
             <div style={{
               padding: '80px 24px', textAlign: 'center',
-              background: 'rgba(15, 27, 46, 0.4)',
-              border: '1px dashed var(--border)',
+              background: 'rgba(255, 68, 68, 0.05)',
+              border: '1px dashed rgba(255,68,68,0.3)',
               borderRadius: 16,
               marginBottom: 40,
             }}>
-              <div style={{ fontSize: 56, marginBottom: 16, opacity: 0.4 }} aria-hidden>⏳</div>
-              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, marginBottom: 8 }}>Loading...</h3>
+              <div style={{ fontSize: 56, marginBottom: 16, opacity: 0.6 }} aria-hidden>⚠️</div>
+              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, marginBottom: 8, color: '#ff6666' }}>Failed to load tournaments</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Please refresh the page to try again.</p>
             </div>
           ) : visible.length > 0 ? (
-            /* Cards grid */
-            <div className="grid-tournaments" style={{ marginBottom: 40 }}>
-              {visible.map(t => (
-                <TournamentCard
-                  key={t.id}
-                  id={t.id}
-                  title={t.title}
-                  prize={t.prize_pool}
-                  maxTeams={t.max_teams}
-                  registeredTeams={t.registered_teams}
-                  status={t.status}
-                  map={t.map}
-                  gameMode={t.game_mode}
-                  format={t.format}
-                  startsAt={t.starts_at}
-                />
-              ))}
-            </div>
+            <>
+              {/* Results count — BUG-04: fixed pluralization */}
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                marginBottom: 24, paddingBottom: 16, borderBottom: '1px solid var(--border)',
+              }}>
+                <div style={{ fontSize: 14, color: 'var(--text-secondary)', fontFamily: 'var(--font-heading)', letterSpacing: '0.06em' }}>
+                  <strong style={{ color: 'var(--gold-bright)', fontSize: 18, marginRight: 6 }}>{filtered.length}</strong>
+                  {`tournament${filtered.length === 1 ? '' : 's'} found`}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.16em', fontFamily: 'var(--font-heading)' }}>
+                  Showing {visible.length} of {filtered.length}
+                </div>
+              </div>
+              {/* Cards grid */}
+              <div className="grid-tournaments" style={{ marginBottom: 40 }}>
+                {visible.map(t => (
+                  <TournamentCard
+                    key={t.id}
+                    id={t.id}
+                    title={t.title}
+                    prize={t.prize_pool}
+                    maxTeams={t.max_teams}
+                    registeredTeams={t.registered_teams}
+                    status={t.status}
+                    map={t.map}
+                    gameMode={t.game_mode}
+                    format={t.format}
+                    startsAt={t.starts_at}
+                  />
+                ))}
+              </div>
+            </>
           ) : (
+            /* BUG-25: Empty state with CTA */
             <div style={{
               padding: '80px 24px', textAlign: 'center',
               background: 'rgba(15, 27, 46, 0.4)',
@@ -222,13 +249,20 @@ export default function TournamentsPage() {
               marginBottom: 40,
             }}>
               <div style={{ fontSize: 56, marginBottom: 16, opacity: 0.4 }} aria-hidden>🎯</div>
-              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, marginBottom: 8 }}>No tournaments yet</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Try clearing some filters or checking back later.</p>
+              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, marginBottom: 8 }}>No tournaments found</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>
+                {search || filter !== 'all' || map !== 'All Maps' || mode !== 'All Modes'
+                  ? 'Try clearing some filters or checking back later.'
+                  : 'No tournaments have been created yet.'}
+              </p>
+              <Link href="/tournaments/create" className="btn-primary" style={{ fontSize: 14 }}>
+                Host a Tournament →
+              </Link>
             </div>
           )}
 
           {/* Load more */}
-          {!loading && hasMore && (
+          {!loading && !error && hasMore && (
             <div style={{ textAlign: 'center', padding: '0 0 80px' }}>
               <button
                 type="button"

@@ -1,7 +1,6 @@
 'use client'
 import Link from 'next/link'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import PubgCharacter from '@/components/pubg/PubgCharacter'
 import { createClient } from '@supabase/supabase-js'
 
@@ -19,7 +18,6 @@ export default function RegisterPage() {
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
   const [tooltip, setTooltip] = useState(false)
-  const router = useRouter()
 
   const update = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
@@ -97,7 +95,7 @@ export default function RegisterPage() {
               Join the <span className="gradient-cyan">Elite</span>
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.7 }}>
-              Forge your legend. Compete with 127,000+ players in the world&apos;s most competitive PUBG Mobile tournaments.
+              Forge your legend. Compete with thousands of players in the world&apos;s most competitive PUBG Mobile tournaments.
             </p>
           </div>
         </div>
@@ -165,7 +163,7 @@ export default function RegisterPage() {
                   type="email"
                   required
                   autoComplete="email"
-                  placeholder="commander@battlezone.gg"
+                  placeholder="player@example.com"
                   value={form.email}
                   onChange={update('email')}
                 />

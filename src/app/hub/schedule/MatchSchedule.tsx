@@ -1,6 +1,8 @@
 'use client'
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 
 type MatchStatus = 'Upcoming' | 'Live' | 'Completed' | 'Today'
 type FilterTab = 'All' | 'Today' | 'Upcoming' | 'Completed'
@@ -14,51 +16,24 @@ interface Match {
   opponent?: string
 }
 
-function todayAt(h: number, m: number): string {
-  const d = new Date()
-  d.setHours(h, m, 0, 0)
-  return d.toISOString()
-}
-
-function daysFromNow(days: number, h = 14, m = 0): string {
-  const d = new Date()
-  d.setDate(d.getDate() + days)
-  d.setHours(h, m, 0, 0)
-  return d.toISOString()
-}
-
-const MATCHES: Match[] = [
-  {
-    id: 'm1', tournament: 'PMCO Spring Split', time: todayAt(18, 0),
-    map: 'Erangel', status: 'Today', opponent: 'Team Queso',
-  },
-  {
-    id: 'm2', tournament: 'Weekly Skirmish #12', time: todayAt(20, 30),
-    map: 'Miramar', status: 'Today', opponent: 'Iron Eagles',
-  },
-  {
-    id: 'm3', tournament: 'PMCO Spring Split', time: daysFromNow(2),
-    map: 'Sanhok', status: 'Upcoming', opponent: 'Ghost Squad',
-  },
-  {
-    id: 'm4', tournament: 'Pro League Season 4', time: daysFromNow(4, 16),
-    map: 'Vikendi', status: 'Upcoming', opponent: 'Nova Esports',
-  },
-  {
-    id: 'm5', tournament: 'Weekend Clash', time: daysFromNow(-1, 20),
-    map: 'Livik', status: 'Completed', opponent: 'Red Devils',
-  },
-  {
-    id: 'm6', tournament: 'PMCO Qualifier', time: daysFromNow(-3, 17),
-    map: 'Erangel', status: 'Completed', opponent: 'Storm Riders',
-  },
-]
-
 const STATUS_CONFIG: Record<MatchStatus, { color: string; bg: string; label: string }> = {
   Today: { color: '#FF8C00', bg: 'rgba(255,140,0,0.12)', label: '🔔 Today' },
   Upcoming: { color: '#00D4FF', bg: 'rgba(0,212,255,0.1)', label: '📆 Upcoming' },
   Live: { color: '#FF4444', bg: 'rgba(255,68,68,0.12)', label: '🔴 LIVE' },
   Completed: { color: '#22D67A', bg: 'rgba(34,214,122,0.1)', label: '✅ Done' },
+}
+
+function getMatchStatus(startedAt: string): MatchStatus {
+  const matchTime = new Date(startedAt)
+  const now = new Date()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+
+  if (matchTime < now) return 'Completed'
+  if (matchTime >= today && matchTime < tomorrow) return 'Today'
+  return 'Upcoming'
 }
 
 function formatMatchTime(iso: string): string {
@@ -73,14 +48,68 @@ const FILTERS: FilterTab[] = ['All', 'Today', 'Upcoming', 'Completed']
 
 export default function MatchSchedule() {
   const [filter, setFilter] = useState<FilterTab>('All')
+  const [matches, setMatches] = useState<Match[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const filtered = MATCHES.filter((m) => {
+  useEffect(() => {
+    async function fetchMatches() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { setLoading(false); return }
+
+        const { data: myTeams } = await supabase
+          .from('teams')
+          .select('id, tournament_id')
+          .eq('captain_id', user.id)
+
+        if (!myTeams || myTeams.length === 0) {
+          setLoading(false)
+          return
+        }
+
+        const tournamentIds = (myTeams as any[]).map((t: any) => t.tournament_id).filter(Boolean)
+
+        if (tournamentIds.length === 0) {
+          setLoading(false)
+          return
+        }
+
+        const { data: matchData } = await supabase
+          .from('matches')
+          .select('*, tournaments(title, map)')
+          .in('tournament_id', tournamentIds)
+          .order('started_at', { ascending: true })
+
+        const mapped: Match[] = (matchData || []).map((m: any) => ({
+          id: m.id,
+          tournament: m.tournaments?.title || m.title || 'Match',
+          time: m.started_at || m.created_at || new Date().toISOString(),
+          map: m.tournaments?.map || m.map || 'Erangel',
+          status: getMatchStatus(m.started_at || m.created_at || new Date().toISOString()),
+          opponent: m.opponent_team || undefined,
+        }))
+
+        setMatches(mapped)
+      } catch (err) {
+        console.error('MatchSchedule fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchMatches()
+  }, [])
+
+  const filtered = matches.filter((m) => {
     if (filter === 'All') return true
     if (filter === 'Today') return m.status === 'Today'
     if (filter === 'Upcoming') return m.status === 'Upcoming'
     if (filter === 'Completed') return m.status === 'Completed'
     return true
   })
+
+  if (loading) {
+    return <div className='p-8 text-center text-[var(--color-muted)]'>Loading...</div>
+  }
 
   return (
     <div className="schedule-view">
@@ -100,7 +129,11 @@ export default function MatchSchedule() {
       {/* Match Cards */}
       <div className="schedule-list">
         {filtered.length === 0 && (
-          <div className="schedule-empty">No matches found for this filter.</div>
+          <div className="schedule-empty">
+            {matches.length === 0
+              ? 'No matches scheduled yet. Join a tournament to see your matches here.'
+              : 'No matches found for this filter.'}
+          </div>
         )}
         {filtered.map((match) => {
           const sc = STATUS_CONFIG[match.status]

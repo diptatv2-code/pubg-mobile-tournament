@@ -19,7 +19,9 @@ import {
   Sparkles,
   Trophy,
 } from "lucide-react";
-import type { ScoringConfig, GameMode, TournamentFormat } from "@/types/database";
+import type { ScoringConfig, GameMode, TournamentFormat, Tournament } from "@/types/database";
+import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 const STEPS = [
   { key: "basic", label: "Basics", icon: ClipboardList },
@@ -74,12 +76,49 @@ export function TournamentWizard() {
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WizardData>(initial);
   const [submitted, setSubmitted] = useState(false);
+  const router = useRouter();
 
   const update = <K extends keyof WizardData>(k: K, v: WizardData[K]) =>
     setData((d) => ({ ...d, [k]: v }));
 
   const next = () => setStep((s) => Math.min(STEPS.length - 1, s + 1));
   const prev = () => setStep((s) => Math.max(0, s - 1));
+
+  const handlePublish = async () => {
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData?.user;
+    if (!user) { router.push("/auth/login"); return; }
+    const wizardData = data;
+    const slug = wizardData.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const payload: Partial<Tournament> = {
+      title: wizardData.title,
+      description: wizardData.description,
+      slug: slug + "-" + Date.now(),
+      organizer_id: user.id,
+      game_mode: wizardData.game_mode,
+      map: wizardData.map,
+      format: wizardData.format,
+      total_matches: wizardData.total_matches,
+      max_teams: wizardData.max_teams,
+      scoring_config: wizardData.scoring,
+      registration_opens_at: wizardData.registration_opens_at,
+      registration_closes_at: wizardData.registration_closes_at,
+      starts_at: wizardData.starts_at,
+      entry_fee: wizardData.entry_fee,
+      prize_pool: wizardData.prize_pool,
+      prize_distribution: [
+        { position: 1, percent: wizardData.first_pct, amount: Math.floor(wizardData.prize_pool * wizardData.first_pct / 100) },
+        { position: 2, percent: wizardData.second_pct, amount: Math.floor(wizardData.prize_pool * wizardData.second_pct / 100) },
+        { position: 3, percent: wizardData.third_pct, amount: Math.floor(wizardData.prize_pool * wizardData.third_pct / 100) },
+      ],
+      status: "draft",
+      registered_teams: 0,
+    };
+    const { data: t, error } = await supabase.from("tournaments").insert(payload).select().single();
+    if (error) { alert("Error: " + error.message); return; }
+    setSubmitted(true);
+    if (t) setTimeout(() => { router.push(`/tournaments/${t.id}/manage`); }, 2000);
+  };
 
   if (submitted) {
     return (
@@ -188,7 +227,7 @@ export function TournamentWizard() {
           <ChevronLeft className="h-4 w-4" /> Back
         </Button>
         {step === STEPS.length - 1 ? (
-          <Button variant="primary" size="lg" onClick={() => setSubmitted(true)}>
+          <Button variant="primary" size="lg" onClick={handlePublish}>
             <Sparkles className="h-4 w-4" /> Publish Tournament
           </Button>
         ) : (

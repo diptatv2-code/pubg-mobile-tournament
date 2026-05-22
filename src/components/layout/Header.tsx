@@ -3,24 +3,38 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { createClient } from '@supabase/supabase-js'
 
 const NAV_LINKS = [
   { href: '/tournaments', label: 'Tournaments' },
-  { href: '/leaderboard', label: 'Leaderboard' },
-  { href: '/teams', label: 'Teams' },
-  { href: '/schedule', label: 'Schedule' },
+  { href: '/hub/leaderboard', label: 'Leaderboard' },
+  { href: '/hub/roster', label: 'Teams' },
+  { href: '/hub/schedule', label: 'Schedule' },
 ]
 
 export default function Header() {
   const pathname = usePathname()
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [liveCount, setLiveCount] = useState<number | null>(null)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50)
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useEffect(() => {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    supabase
+      .from('tournaments')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'ongoing')
+      .then(({ count }) => setLiveCount(count || 0))
   }, [])
 
   useEffect(() => {
@@ -32,6 +46,7 @@ export default function Header() {
   }, [menuOpen])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMenuOpen(false)
   }, [pathname])
 
@@ -147,40 +162,42 @@ export default function Header() {
 
           {/* RIGHT */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div
-              className="header-live-badge"
-              aria-label="3 live tournaments"
-              style={{
-                alignItems: 'center',
-                gap: 6,
-                background: 'rgba(255, 68, 68, 0.12)',
-                border: '1px solid rgba(255, 68, 68, 0.3)',
-                color: '#FF4444',
-                padding: '4px 12px',
-                borderRadius: 4,
-                fontSize: 12,
-                fontFamily: "'Rajdhani', sans-serif",
-                fontWeight: 700,
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <span
-                aria-hidden
+            {liveCount !== null && liveCount > 0 && (
+              <div
+                className="header-live-badge"
+                aria-label={`${liveCount} live tournament${liveCount !== 1 ? 's' : ''}`}
                 style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  background: '#FF4444',
-                  boxShadow: '0 0 8px #FF4444',
-                  animation: 'pulseRed 1.4s ease-in-out infinite',
-                  display: 'inline-block',
-                  flexShrink: 0,
+                  alignItems: 'center',
+                  gap: 6,
+                  background: 'rgba(255, 68, 68, 0.12)',
+                  border: '1px solid rgba(255, 68, 68, 0.3)',
+                  color: '#FF4444',
+                  padding: '4px 12px',
+                  borderRadius: 4,
+                  fontSize: 12,
+                  fontFamily: "'Rajdhani', sans-serif",
+                  fontWeight: 700,
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
                 }}
-              />
-              3 Live
-            </div>
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: '#FF4444',
+                    boxShadow: '0 0 8px #FF4444',
+                    animation: 'pulseRed 1.4s ease-in-out infinite',
+                    display: 'inline-block',
+                    flexShrink: 0,
+                  }}
+                />
+                {liveCount} Live
+              </div>
+            )}
 
             <Link
               href="/tournaments"

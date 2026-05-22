@@ -4,9 +4,9 @@ import { usePathname } from 'next/navigation'
 
 const ITEMS = [
   { href: '/tournaments', label: 'Battles', icon: '⊕' },
-  { href: '/leaderboard', label: 'Ranks', icon: '🏆' },
+  { href: '/hub/leaderboard', label: 'Ranks', icon: '🏆' },
   { href: '/dashboard', label: 'Dashboard', icon: '⚡' },
-  { href: '/profile', label: 'Profile', icon: '👤' },
+  { href: '/hub/roster', label: 'Roster', icon: '👤' },
 ] as const
 
 export default function MobileBottomNav() {

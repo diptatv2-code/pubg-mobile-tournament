@@ -1,6 +1,8 @@
 'use client'
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 
 type TxType = 'Deposit' | 'Withdrawal' | 'Prize' | 'Entry Fee'
 type TxStatus = 'Completed' | 'Pending' | 'Failed'
@@ -12,21 +14,6 @@ interface Transaction {
   date: string
   status: TxStatus
 }
-
-const MOCK_TRANSACTIONS: Transaction[] = [
-  { id: 'tx001', type: 'Prize', amount: +500, date: '2026-05-08', status: 'Completed' },
-  { id: 'tx002', type: 'Entry Fee', amount: -100, date: '2026-05-07', status: 'Completed' },
-  { id: 'tx003', type: 'Deposit', amount: +300, date: '2026-05-05', status: 'Completed' },
-  { id: 'tx004', type: 'Withdrawal', amount: -200, date: '2026-05-04', status: 'Completed' },
-  { id: 'tx005', type: 'Entry Fee', amount: -100, date: '2026-05-03', status: 'Completed' },
-  { id: 'tx006', type: 'Deposit', amount: +1000, date: '2026-05-01', status: 'Completed' },
-  { id: 'tx007', type: 'Prize', amount: +750, date: '2026-04-28', status: 'Completed' },
-  { id: 'tx008', type: 'Withdrawal', amount: -500, date: '2026-04-25', status: 'Pending' },
-  { id: 'tx009', type: 'Entry Fee', amount: -50, date: '2026-04-22', status: 'Completed' },
-  { id: 'tx010', type: 'Deposit', amount: +200, date: '2026-04-20', status: 'Failed' },
-]
-
-const INITIAL_BALANCE = 2500
 
 const TYPE_COLORS: Record<TxType, string> = {
   Prize: '#22D67A',
@@ -41,54 +28,65 @@ const STATUS_STYLES: Record<TxStatus, { bg: string; color: string }> = {
   Failed: { bg: 'rgba(255,68,68,0.12)', color: '#FF4444' },
 }
 
+function normalizeTxType(type: string): TxType {
+  const t = (type || '').toLowerCase()
+  if (t.includes('prize') || t.includes('reward') || t.includes('win')) return 'Prize'
+  if (t.includes('withdraw')) return 'Withdrawal'
+  if (t.includes('entry') || t.includes('fee') || t.includes('registration')) return 'Entry Fee'
+  return 'Deposit'
+}
+
+function normalizeTxStatus(status: string): TxStatus {
+  const s = (status || '').toLowerCase()
+  if (s.includes('fail') || s.includes('reject')) return 'Failed'
+  if (s.includes('pend') || s.includes('process')) return 'Pending'
+  return 'Completed'
+}
+
 export default function WalletDashboard() {
-  const [balance, setBalance] = useState(INITIAL_BALANCE)
-  const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS)
-  const [depositOpen, setDepositOpen] = useState(false)
-  const [withdrawOpen, setWithdrawOpen] = useState(false)
-  const [amount, setAmount] = useState('')
-  const [modalError, setModalError] = useState('')
+  const [balance, setBalance] = useState(0)
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [loading, setLoading] = useState(true)
 
-  function handleDeposit() {
-    const val = parseFloat(amount)
-    if (!val || val <= 0) { setModalError('Enter a valid amount.'); return }
-    const tx: Transaction = {
-      id: 'tx' + Date.now(),
-      type: 'Deposit',
-      amount: val,
-      date: new Date().toISOString().slice(0, 10),
-      status: 'Completed',
+  useEffect(() => {
+    async function fetchWallet() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { setLoading(false); return }
+
+        const { data: txns } = await supabase
+          .from('wallet_transactions')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+
+        if (txns && txns.length > 0) {
+          const mapped: Transaction[] = (txns as any[]).map((tx: any) => ({
+            id: tx.id,
+            type: normalizeTxType(tx.type || tx.transaction_type || ''),
+            amount: tx.amount || 0,
+            date: tx.created_at ? tx.created_at.slice(0, 10) : tx.date || '—',
+            status: normalizeTxStatus(tx.status || ''),
+          }))
+          setTransactions(mapped)
+
+          // Compute balance from completed transactions
+          const bal = mapped
+            .filter((tx) => tx.status === 'Completed')
+            .reduce((sum, tx) => sum + tx.amount, 0)
+          setBalance(Math.max(0, bal))
+        }
+      } catch (err) {
+        console.error('WalletDashboard fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
     }
-    setBalance((b) => b + val)
-    setTransactions((t) => [tx, ...t])
-    setAmount('')
-    setDepositOpen(false)
-    setModalError('')
-  }
+    fetchWallet()
+  }, [])
 
-  function handleWithdraw() {
-    const val = parseFloat(amount)
-    if (!val || val <= 0) { setModalError('Enter a valid amount.'); return }
-    if (val > balance) { setModalError('Insufficient balance.'); return }
-    const tx: Transaction = {
-      id: 'tx' + Date.now(),
-      type: 'Withdrawal',
-      amount: -val,
-      date: new Date().toISOString().slice(0, 10),
-      status: 'Pending',
-    }
-    setBalance((b) => b - val)
-    setTransactions((t) => [tx, ...t])
-    setAmount('')
-    setWithdrawOpen(false)
-    setModalError('')
-  }
-
-  function closeModals() {
-    setDepositOpen(false)
-    setWithdrawOpen(false)
-    setAmount('')
-    setModalError('')
+  if (loading) {
+    return <div className='p-8 text-center text-[var(--color-muted)]'>Loading...</div>
   }
 
   return (
@@ -100,99 +98,52 @@ export default function WalletDashboard() {
           <span className="wallet-currency">৳</span>
           {balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
         </div>
-        <div className="wallet-actions">
-          <button className="wallet-btn wallet-btn-deposit" onClick={() => { setWithdrawOpen(false); setDepositOpen(true) }}>
-            ↓ Deposit
-          </button>
-          <button className="wallet-btn wallet-btn-withdraw" onClick={() => { setDepositOpen(false); setWithdrawOpen(true) }}>
-            ↑ Withdraw
-          </button>
-        </div>
       </div>
 
       {/* Transaction History */}
       <div className="wallet-history">
         <h3 className="wallet-section-title">Transaction History</h3>
-        <div className="wallet-table-wrap">
-          <table className="wallet-table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Amount</th>
-                <th>Date</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((tx) => (
-                <tr key={tx.id}>
-                  <td>
-                    <span className="tx-type-dot" style={{ background: TYPE_COLORS[tx.type] }} />
-                    {tx.type}
-                  </td>
-                  <td style={{ color: tx.amount >= 0 ? '#22D67A' : '#FF4444', fontWeight: 700, fontFamily: 'monospace' }}>
-                    {tx.amount >= 0 ? '+' : ''}৳{Math.abs(tx.amount).toLocaleString()}
-                  </td>
-                  <td className="tx-date">{tx.date}</td>
-                  <td>
-                    <span
-                      className="tx-status-badge"
-                      style={{ background: STATUS_STYLES[tx.status].bg, color: STATUS_STYLES[tx.status].color }}
-                    >
-                      {tx.status}
-                    </span>
-                  </td>
+        {transactions.length === 0 ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+            No transactions yet.
+          </div>
+        ) : (
+          <div className="wallet-table-wrap">
+            <table className="wallet-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Amount</th>
+                  <th>Date</th>
+                  <th>Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {transactions.map((tx) => (
+                  <tr key={tx.id}>
+                    <td>
+                      <span className="tx-type-dot" style={{ background: TYPE_COLORS[tx.type] }} />
+                      {tx.type}
+                    </td>
+                    <td style={{ color: tx.amount >= 0 ? '#22D67A' : '#FF4444', fontWeight: 700, fontFamily: 'monospace' }}>
+                      {tx.amount >= 0 ? '+' : ''}৳{Math.abs(tx.amount).toLocaleString()}
+                    </td>
+                    <td className="tx-date">{tx.date}</td>
+                    <td>
+                      <span
+                        className="tx-status-badge"
+                        style={{ background: STATUS_STYLES[tx.status].bg, color: STATUS_STYLES[tx.status].color }}
+                      >
+                        {tx.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-
-      {/* Deposit Modal */}
-      {depositOpen && (
-        <div className="wallet-modal-overlay" onClick={closeModals}>
-          <div className="wallet-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="wallet-modal-title" style={{ color: '#00D4FF' }}>Deposit Funds</h3>
-            <input
-              className="wallet-modal-input"
-              type="number"
-              placeholder="Amount (৳)"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              autoFocus
-            />
-            {modalError && <div className="wallet-modal-error">{modalError}</div>}
-            <div className="wallet-modal-actions">
-              <button className="wallet-btn wallet-btn-deposit" onClick={handleDeposit}>Confirm Deposit</button>
-              <button className="wallet-btn wallet-btn-cancel" onClick={closeModals}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Withdraw Modal */}
-      {withdrawOpen && (
-        <div className="wallet-modal-overlay" onClick={closeModals}>
-          <div className="wallet-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="wallet-modal-title" style={{ color: '#FF4444' }}>Withdraw Funds</h3>
-            <div className="wallet-modal-balance">Balance: ৳{balance.toLocaleString()}</div>
-            <input
-              className="wallet-modal-input"
-              type="number"
-              placeholder="Amount (৳)"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              autoFocus
-            />
-            {modalError && <div className="wallet-modal-error">{modalError}</div>}
-            <div className="wallet-modal-actions">
-              <button className="wallet-btn wallet-btn-withdraw" onClick={handleWithdraw}>Confirm Withdrawal</button>
-              <button className="wallet-btn wallet-btn-cancel" onClick={closeModals}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <style>{`
         .wallet-dashboard { display: flex; flex-direction: column; gap: 24px; }
@@ -214,16 +165,6 @@ export default function WalletDashboard() {
           color: var(--gold, #C8A951); line-height: 1; margin-bottom: 24px;
         }
         .wallet-currency { font-size: 2rem; margin-right: 4px; vertical-align: middle; }
-        .wallet-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-        .wallet-btn {
-          padding: 10px 28px; border-radius: 8px; border: none;
-          font-family: var(--font-body); font-weight: 700; font-size: 0.9rem;
-          cursor: pointer; transition: opacity 0.15s; letter-spacing: 0.04em;
-        }
-        .wallet-btn:hover { opacity: 0.85; }
-        .wallet-btn-deposit { background: var(--cyan, #00D4FF); color: #040810; }
-        .wallet-btn-withdraw { background: var(--red, #FF4444); color: #fff; }
-        .wallet-btn-cancel { background: rgba(255,255,255,0.08); color: var(--text-secondary, #B5BCC9); }
 
         /* History */
         .wallet-history {
@@ -258,32 +199,6 @@ export default function WalletDashboard() {
           padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 700;
           letter-spacing: 0.04em; white-space: nowrap;
         }
-
-        /* Modal */
-        .wallet-modal-overlay {
-          position: fixed; inset: 0; background: rgba(4,8,16,0.85);
-          z-index: 200; display: flex; align-items: center; justify-content: center; padding: 16px;
-        }
-        .wallet-modal {
-          background: var(--bg-card, #0F1B2E); border: 1px solid var(--border-strong, rgba(200,169,81,0.3));
-          border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 380px;
-          display: flex; flex-direction: column; gap: 14px;
-          box-shadow: 0 0 40px rgba(0,0,0,0.7);
-        }
-        .wallet-modal-title {
-          font-family: var(--font-heading); font-size: 1.25rem; font-weight: 700;
-          text-transform: uppercase; letter-spacing: 0.06em;
-        }
-        .wallet-modal-balance { font-size: 0.85rem; color: var(--text-muted, #6B7280); }
-        .wallet-modal-input {
-          padding: 10px 14px; background: var(--bg-surface, #0A1020);
-          border: 1px solid var(--border-bright, #2A3F65); border-radius: 8px;
-          color: var(--text, #E8E8E8); font-size: 1rem; font-family: var(--font-body);
-          outline: none; width: 100%;
-        }
-        .wallet-modal-input:focus { border-color: var(--cyan, #00D4FF); }
-        .wallet-modal-error { font-size: 0.8rem; color: #FF4444; }
-        .wallet-modal-actions { display: flex; gap: 10px; flex-wrap: wrap; }
       `}</style>
     </div>
   )
