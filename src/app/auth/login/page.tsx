@@ -1,21 +1,37 @@
 'use client'
 import Link from 'next/link'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import PubgCharacter from '@/components/pubg/PubgCharacter'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [show, setShow] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
   const [done, setDone] = useState(false)
+  const router = useRouter()
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
-    await new Promise(r => setTimeout(r, 700))
-    setSubmitting(false)
+    setError('')
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    if (authError) {
+      setError(authError.message)
+      setSubmitting(false)
+      return
+    }
     setDone(true)
+    setSubmitting(false)
+    router.push('/dashboard')
   }
 
   return (
@@ -37,7 +53,6 @@ export default function LoginPage() {
         overflow: 'hidden',
       }} className="login-aside">
         <div className="hex-bg" aria-hidden />
-        {/* Glow orb */}
         <div aria-hidden style={{
           position: 'absolute', top: '20%', left: '50%', transform: 'translate(-50%, -10%)',
           width: 480, height: 480, borderRadius: '50%',
@@ -58,7 +73,6 @@ export default function LoginPage() {
           </Link>
         </div>
 
-        {/* Center: character + tagline */}
         <div style={{
           flex: 1, display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
@@ -138,7 +152,7 @@ export default function LoginPage() {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <label htmlFor="password" style={{ ...labelStyle, marginBottom: 0 }}>Password</label>
-                  <Link href="/auth/forgot" style={{ fontSize: 12, color: 'var(--cyan)', textDecoration: 'none' }}>Forgot?</Link>
+                  <Link href="/auth/forgot-password" style={{ fontSize: 12, color: 'var(--cyan)', textDecoration: 'none' }}>Forgot?</Link>
                 </div>
                 <div style={{ position: 'relative' }}>
                   <input
@@ -166,10 +180,15 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', fontSize: 13, cursor: 'pointer' }}>
-                <input type="checkbox" style={{ accentColor: 'var(--gold)' }} />
-                Keep me signed in
-              </label>
+              {error && (
+                <div role="alert" style={{
+                  padding: '12px 16px', borderRadius: 6,
+                  background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)',
+                  color: '#ff6666', fontSize: 13,
+                }}>
+                  {error}
+                </div>
+              )}
 
               <button
                 type="submit"
@@ -177,10 +196,9 @@ export default function LoginPage() {
                 className="btn-primary"
                 style={{ width: '100%', padding: '14px 32px', fontSize: 14, marginTop: 4, opacity: submitting ? 0.7 : 1 }}
               >
-                {submitting ? 'Authenticating…' : 'Sign In →'}
+                {submitting ? 'Signing in…' : 'Sign In →'}
               </button>
 
-              {/* Divider */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '8px 0' }}>
                 <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
                 <span style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.18em', fontFamily: 'var(--font-heading)' }}>OR</span>

@@ -1,7 +1,14 @@
 'use client'
 import Link from 'next/link'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import PubgCharacter from '@/components/pubg/PubgCharacter'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 type Form = { username: string; email: string; pubgUid: string; password: string }
 
@@ -10,7 +17,9 @@ export default function RegisterPage() {
   const [show, setShow] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
+  const [error, setError] = useState('')
   const [tooltip, setTooltip] = useState(false)
+  const router = useRouter()
 
   const update = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
@@ -18,9 +27,24 @@ export default function RegisterPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
-    await new Promise(r => setTimeout(r, 800))
-    setSubmitting(false)
+    setError('')
+    const { error: authError } = await supabase.auth.signUp({
+      email: form.email,
+      password: form.password,
+      options: {
+        data: {
+          username: form.username,
+          pubg_uid: form.pubgUid,
+        }
+      }
+    })
+    if (authError) {
+      setError(authError.message)
+      setSubmitting(false)
+      return
+    }
     setDone(true)
+    setSubmitting(false)
   }
 
   return (
@@ -113,7 +137,8 @@ export default function RegisterPage() {
               border: '1px solid rgba(34,214,122,0.3)', borderRadius: 8,
               color: 'var(--green)', fontFamily: 'var(--font-heading)', fontWeight: 600, letterSpacing: '0.04em',
             }}>
-              ✓ Account created. Welcome to the battleground!
+              ✓ Account created! Check your email to confirm your account, then{' '}
+              <Link href="/auth/login" style={{ color: 'var(--gold-bright)' }}>sign in</Link>.
             </div>
           ) : (
             <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -177,7 +202,7 @@ export default function RegisterPage() {
                         color: 'var(--text)', fontSize: 11, fontWeight: 500,
                         fontFamily: 'var(--font-body)', letterSpacing: 'normal', textTransform: 'none',
                         boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-                      }}>Your in-game unique ID (8–10 digits)</span>
+                      }}>Your in-game unique ID (8-10 digits)</span>
                     )}
                   </button>
                 </div>
@@ -221,6 +246,16 @@ export default function RegisterPage() {
                   >{show ? 'Hide' : 'Show'}</button>
                 </div>
               </div>
+
+              {error && (
+                <div role="alert" style={{
+                  padding: '12px 16px', borderRadius: 6,
+                  background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)',
+                  color: '#ff6666', fontSize: 13,
+                }}>
+                  {error}
+                </div>
+              )}
 
               <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.6 }}>
                 By creating an account you agree to our{' '}
