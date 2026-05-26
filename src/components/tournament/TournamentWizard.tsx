@@ -24,7 +24,7 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
 const STEPS = [
-  { key: "basic", label: "Basic Info", icon: ClipboardList },
+  { key: "basic", label: "Basics", icon: ClipboardList },
   { key: "format", label: "Format", icon: Trophy },
   { key: "schedule", label: "Schedule", icon: Calendar },
   { key: "review", label: "Review", icon: Sparkles },
