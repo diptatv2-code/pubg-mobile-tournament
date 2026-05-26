@@ -24,11 +24,9 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
 const STEPS = [
-  { key: "basic", label: "Basics", icon: ClipboardList },
+  { key: "basic", label: "Basic Info", icon: ClipboardList },
   { key: "format", label: "Format", icon: Trophy },
-  { key: "scoring", label: "Scoring", icon: Award },
   { key: "schedule", label: "Schedule", icon: Calendar },
-  { key: "prizes", label: "Prizes", icon: Coins },
   { key: "review", label: "Review", icon: Sparkles },
 ] as const;
 
@@ -210,15 +208,8 @@ export function TournamentWizard() {
         >
           {step === 0 && <StepBasic data={data} update={update} />}
           {step === 1 && <StepFormat data={data} update={update} />}
-          {step === 2 && (
-            <ScoringMatrix
-              value={data.scoring}
-              onChange={(s) => update("scoring", s)}
-            />
-          )}
-          {step === 3 && <StepSchedule data={data} update={update} />}
-          {step === 4 && <StepPrizes data={data} update={update} />}
-          {step === 5 && <StepReview data={data} />}
+          {step === 2 && <StepSchedule data={data} update={update} />}
+          {step === 3 && <StepReview data={data} />}
         </motion.div>
       </AnimatePresence>
 

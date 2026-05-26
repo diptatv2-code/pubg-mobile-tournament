@@ -17,7 +17,7 @@ export default function CreateTournamentPage() {
           Create a Tournament
         </h1>
         <p className="mt-3 max-w-xl mx-auto text-[var(--color-muted)]">
-          Six steps. Five minutes. Zero hosting fees. Configure scoring, schedule, and prizes — then publish.
+          Four steps. Five minutes. Zero hosting fees. Configure your format and schedule — then publish.
         </p>
       </div>
 

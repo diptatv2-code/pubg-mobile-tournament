@@ -3,10 +3,10 @@ import { CSSProperties } from 'react'
 
 const ITEMS = [
   { icon: '🔴', text: 'LIVE: Tournaments happening now', color: 'var(--red)' },
-  { icon: '🏆', text: 'Grand Finals — Registration Open', color: 'var(--gold-bright)' },
+  { icon: '🏆', text: 'Community Cup — Registration Open', color: 'var(--gold-bright)' },
   { icon: '⚡', text: 'New season starting soon', color: 'var(--cyan)' },
-  { icon: '🎖', text: 'PMGC Qualifier — Registration Open', color: 'var(--gold)' },
-  { icon: '🔥', text: 'Prize pool boosted to $1.2M for global league', color: 'var(--orange)' },
+  { icon: '🎖', text: 'Open Qualifier — Registration Open', color: 'var(--gold)' },
+  { icon: '🔥', text: 'Real-time scoring — live leaderboards every match', color: 'var(--orange)' },
   { icon: '🎮', text: 'New map rotation: Erangel · Miramar · Sanhok', color: 'var(--cyan-bright)' },
 ]
 

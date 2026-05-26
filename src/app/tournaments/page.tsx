@@ -98,7 +98,7 @@ export default function TournamentsPage() {
             Find Your <span className="gradient-gold">Battle</span>
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: 17, maxWidth: 560, margin: '0 auto' }}>
-            Compete in tournaments across every skill tier. Free entry, real prizes.
+            Compete in tournaments across every skill tier. Free entry, compete worldwide.
           </p>
         </div>
       </section>

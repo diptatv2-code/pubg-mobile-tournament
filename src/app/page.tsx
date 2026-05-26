@@ -9,7 +9,7 @@ const HOW_STEPS = [
   { n: '01', title: 'Register', desc: 'Create your free account and verify your PUBG Mobile UID. Takes less than 60 seconds.' },
   { n: '02', title: 'Form Team', desc: 'Build your squad of 4 elite players. Invite friends or join the open lobby.' },
   { n: '03', title: 'Compete', desc: 'Receive encrypted room codes at match time. Battle it out across iconic maps.' },
-  { n: '04', title: 'Win Prizes', desc: 'Real-time scoring. Automatic payouts. Transparent leaderboard. Glory awaits.' },
+  { n: '04', title: 'Climb Leaderboard', desc: 'Real-time scoring. Transparent leaderboards. Rise through the ranks.' },
 ]
 
 const accentBar = (a: 'red' | 'gold' | 'cyan') =>
@@ -129,7 +129,7 @@ export default async function HomePage() {
               fontSize: 18, color: 'var(--text-secondary)',
               maxWidth: 560, marginBottom: 36, lineHeight: 1.7,
             }}>
-              Be among the first to compete in PUBG Mobile tournaments worldwide. Real-time scoring, encrypted rooms, automatic payouts.
+              Be among the first to compete in PUBG Mobile tournaments worldwide. Real-time scoring, encrypted rooms, transparent leaderboards.
             </p>
 
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 48 }}>
@@ -150,14 +150,13 @@ export default async function HomePage() {
                 {[
                   { v: realTournamentCount, l: 'Tournaments', c: 'var(--gold-bright)' },
                   { v: realPlayerCount, l: 'Players', c: 'var(--cyan-bright)' },
-                  { v: 0, l: 'Prize Money', c: 'var(--gold)', prefix: '$', suffix: 'K+', decimals: 0 },
                 ].map(s => (
                   <div key={s.l}>
                     <div style={{
                       fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 700,
                       color: s.c, lineHeight: 1, letterSpacing: '-0.01em',
                     }}>
-                      <AnimatedCounter to={s.v} prefix={s.prefix ?? ''} suffix={s.suffix ?? '+'} decimals={s.decimals ?? 0} />
+                      <AnimatedCounter to={s.v} prefix={''} suffix={'+'} decimals={0} />
                     </div>
                     <div style={{
                       fontSize: 11, color: 'var(--text-muted)', marginTop: 6,
@@ -422,7 +421,6 @@ export default async function HomePage() {
               {[
                 { v: realTournamentCount, l: 'Tournaments', c: 'var(--gold-bright)', prefix: '', suffix: '+' },
                 { v: realPlayerCount, l: 'Players', c: 'var(--cyan-bright)', prefix: '', suffix: '+' },
-                { v: 0, l: 'Prize Distributed', c: 'var(--gold)', prefix: '$', suffix: 'K+', decimals: 0 },
               ].map((s, i) => (
                 <div key={s.l} className="animate-fade-up" style={{
                   textAlign: 'center',
@@ -434,7 +432,7 @@ export default async function HomePage() {
                     fontWeight: 700, color: s.c, lineHeight: 1,
                     letterSpacing: '-0.02em', textShadow: `0 0 30px ${s.c}33`,
                   }}>
-                    <AnimatedCounter to={s.v} prefix={s.prefix} suffix={s.suffix} decimals={s.decimals ?? 0} />
+                    <AnimatedCounter to={s.v} prefix={s.prefix ?? ''} suffix={s.suffix ?? '+'} decimals={0} />
                   </div>
                   <div style={{
                     marginTop: 14, fontSize: 12, color: 'var(--text-muted)',
@@ -483,7 +481,7 @@ export default async function HomePage() {
                 color: 'var(--text-secondary)', fontSize: 17, maxWidth: 580,
                 margin: '0 auto 36px', lineHeight: 1.7,
               }}>
-                Free to register. Free to compete. Earn real prizes by climbing the global leaderboard.
+                Free to register. Free to compete. Climb the global leaderboard and earn community recognition.
               </p>
               <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
                 <Link href="/auth/register" className="btn-primary" style={{ fontSize: 16, padding: '18px 40px' }}>
