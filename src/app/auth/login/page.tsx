@@ -1,14 +1,37 @@
 'use client'
 import Link from 'next/link'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import PubgCharacter from '@/components/pubg/PubgCharacter'
-import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+function RegisteredBanner() {
+  const searchParams = useSearchParams()
+  const registered = searchParams.get('registered') === '1'
+  if (!registered) return null
+  return (
+    <div role="status" style={{
+      marginBottom: 20,
+      padding: '12px 16px',
+      background: 'rgba(34,214,122,0.1)',
+      border: '1px solid rgba(34,214,122,0.3)',
+      borderRadius: 8,
+      color: 'var(--green)',
+      fontFamily: 'var(--font-heading)',
+      fontWeight: 600,
+      letterSpacing: '0.04em',
+      fontSize: 13,
+    }}>
+      ✓ Account created! Sign in below.
+    </div>
+  )
+}
+
+function NextPathReader({ onPath }: { onPath: (p: string) => void }) {
+  const searchParams = useSearchParams()
+  const nextPath = searchParams.get('next') || '/dashboard'
+  onPath(nextPath)
+  return null
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -17,21 +40,31 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
+  const [nextPath, setNextPath] = useState('/dashboard')
   const router = useRouter()
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
     setError('')
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
-    if (authError) {
-      setError(authError.message)
+
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, next: nextPath }),
+    })
+    const data = await res.json()
+
+    if (!res.ok || data.error) {
+      setError(data.error || 'Sign in failed')
       setSubmitting(false)
       return
     }
+
     setDone(true)
     setSubmitting(false)
-    router.push('/dashboard')
+    // Hard redirect so middleware cookie is re-read on fresh page load
+    window.location.href = data.redirectTo || '/dashboard'
   }
 
   return (
@@ -124,6 +157,13 @@ export default function LoginPage() {
               </Link>
             </p>
           </div>
+
+          <Suspense fallback={null}>
+            <RegisteredBanner />
+          </Suspense>
+          <Suspense fallback={null}>
+            <NextPathReader onPath={setNextPath} />
+          </Suspense>
 
           {done ? (
             <div role="status" style={{
