@@ -8,6 +8,8 @@ const PROTECTED_PREFIXES = [
   '/hub/roster',
   '/hub/wallet',
   '/hub/invites',
+  '/hub/live',
+  '/hub/schedule',
   '/admin',
   '/tournaments/create',
 ]
@@ -65,6 +67,8 @@ export const config = {
     '/hub/roster/:path*',
     '/hub/wallet/:path*',
     '/hub/invites/:path*',
+    '/hub/live/:path*',
+    '/hub/schedule/:path*',
     '/admin/:path*',
     '/tournaments/create',
   ],
