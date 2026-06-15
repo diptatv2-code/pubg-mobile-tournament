@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
-const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+import { supabaseAdmin as admin } from "@/lib/supabase"
+
 
 export default async function AdminTournamentsPage() {
   const { data: tournaments } = await admin.from('tournaments').select('id, title, status, organizer_id, registered_teams, max_teams, prize_pool, created_at').order('created_at', { ascending: false }).limit(100)

@@ -5,21 +5,24 @@ const COLUMNS: { title: string; links: [string, string][] }[] = [
     title: 'Platform',
     links: [
       ['Tournaments', '/tournaments'],
-      ['Leaderboard', '/hub/leaderboard'],
-      ['Create Tournament', '/tournaments/create'],
+      ['Leaderboard', '/leaderboard'],
+      ['Winners', '/winners'],
+      ['Rules', '/rules'],
     ],
   },
   {
     title: 'Account',
     links: [
       ['Dashboard', '/dashboard'],
-      ['Roster', '/hub/roster'],
-      ['Wallet', '/hub/wallet'],
+      ['Register', '/auth/register'],
+      ['Login', '/auth/login'],
     ],
   },
   {
-    title: 'Legal',
+    title: 'Company',
     links: [
+      ['About', '/about'],
+      ['Contact', '/contact'],
       ['Terms', '/terms'],
       ['Privacy', '/privacy'],
     ],

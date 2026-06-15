@@ -1,9 +1,10 @@
-'use client'
+"use client"
+import { supabase } from "@/lib/supabase"
+
 import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
 import TournamentCard from '@/components/tournament/TournamentCard'
-import { createClient } from '@supabase/supabase-js'
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+
 import type { Tournament } from '@/types/database'
 
 

@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getFullLeaderboard, getTopTeams } from '@/lib/leaderboard'
-import { createClient } from '@supabase/supabase-js'
+import { supabaseAdmin } from '@/lib/supabase'
+const supabase = supabaseAdmin
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 export async function GET(
   request: NextRequest,

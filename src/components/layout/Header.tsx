@@ -7,9 +7,11 @@ import { createClient } from '@supabase/supabase-js'
 
 const NAV_LINKS = [
   { href: '/tournaments', label: 'Tournaments' },
-  { href: '/hub/leaderboard', label: 'Leaderboard' },
-  { href: '/hub/roster', label: 'Teams' },
-  { href: '/hub/schedule', label: 'Schedule' },
+  { href: '/leaderboard', label: 'Leaderboard' },
+  { href: '/winners', label: 'Winners' },
+  { href: '/rules', label: 'Rules' },
+  { href: '/about', label: 'About' },
+  { href: '/contact', label: 'Contact' },
 ]
 
 export default function Header() {

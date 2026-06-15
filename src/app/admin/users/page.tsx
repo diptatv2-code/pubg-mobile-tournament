@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
-const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+import { supabaseAdmin as admin } from "@/lib/supabase"
+
 
 export default async function AdminUsersPage() {
   const { data: users } = await admin.from('profiles').select('id, email, username, pubg_name, role, is_admin, is_banned, wallet_balance, created_at').order('created_at', { ascending: false }).limit(100)

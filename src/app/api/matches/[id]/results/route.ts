@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { incrementTeamScore } from '@/lib/leaderboard'
-import { createClient } from '@supabase/supabase-js'
+import { supabaseAdmin } from '@/lib/supabase'
 import { calculateMatchPoints, DEFAULT_SCORING_MATRIX } from '@/lib/scoring'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+const supabase = supabaseAdmin
 
 export async function POST(
   request: NextRequest,
@@ -42,7 +39,7 @@ export async function POST(
     for (const result of results) {
       const points = calculateMatchPoints(result, matrix)
 
-      await supabase.from('match_results').upsert({
+      await supabaseAdmin.from('match_results').upsert({
         match_id: matchId,
         team_id: result.teamId,
         placement: result.placement,

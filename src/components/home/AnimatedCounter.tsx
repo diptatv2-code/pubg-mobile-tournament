@@ -1,48 +1,30 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
-type Props = {
+interface Props {
   to: number
-  duration?: number
   prefix?: string
   suffix?: string
-  decimals?: number
-  className?: string
-  style?: React.CSSProperties
+  duration?: number
 }
 
-export default function AnimatedCounter({ to, duration = 1600, prefix = '', suffix = '', decimals = 0, className, style }: Props) {
-  const [value, setValue] = useState(0)
-  const startedRef = useRef(false)
-  const ref = useRef<HTMLSpanElement | null>(null)
+export default function AnimatedCounter({ to, prefix = '', suffix = '', duration = 1500 }: Props) {
+  const [count, setCount] = useState(0)
 
   useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const observer = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting || startedRef.current) return
-      startedRef.current = true
-      const start = performance.now()
-      const tick = (t: number) => {
-        const p = Math.min(1, (t - start) / duration)
-        const eased = 1 - Math.pow(1 - p, 3)
-        setValue(eased * to)
-        if (p < 1) requestAnimationFrame(tick)
-      }
-      requestAnimationFrame(tick)
-    }, { threshold: 0.2 })
-    observer.observe(el)
-    return () => observer.disconnect()
+    if (to === 0) { setCount(0); return }
+    const steps = 50
+    const interval = duration / steps
+    let step = 0
+    const timer = setInterval(() => {
+      step++
+      const progress = step / steps
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setCount(Math.round(eased * to))
+      if (step >= steps) clearInterval(timer)
+    }, interval)
+    return () => clearInterval(timer)
   }, [to, duration])
 
-  const formatted = value.toLocaleString('en-US', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  })
-
-  return (
-    <span ref={ref} className={className} style={style}>
-      {prefix}{formatted}{suffix}
-    </span>
-  )
+  return <span>{prefix}{count.toLocaleString()}{suffix}</span>
 }

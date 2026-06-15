@@ -1,80 +1,93 @@
-"use client";
-import { motion } from "framer-motion";
-import { UserPlus, Trophy, Crown } from "lucide-react";
+'use client'
+import { motion } from 'framer-motion'
 
-const steps = [
-  {
-    icon: UserPlus,
-    title: "Register",
-    desc: "Create your free account, link your PUBG ID, and form your squad.",
-    accent: "from-[var(--color-secondary)] to-[var(--color-secondary)]/40",
-  },
-  {
-    icon: Trophy,
-    title: "Create or Join",
-    desc: "Host a custom tournament with your own scoring and prizes — or jump into one open right now.",
-    accent: "from-[var(--color-primary)] to-[var(--color-primary)]/40",
-  },
-  {
-    icon: Crown,
-    title: "Compete & Conquer",
-    desc: "Get room codes, drop in, and climb the live leaderboard. Win prizes. Earn rank points.",
-    accent: "from-[var(--color-success)] to-[var(--color-success)]/40",
-  },
-];
+const STEPS = [
+  { n: '01', title: 'Register', desc: 'Create your free account and verify your PUBG Mobile UID. Takes less than 60 seconds.', icon: '📝' },
+  { n: '02', title: 'Form Squad', desc: 'Build your team of 4 elite players. Invite friends or find teammates in the lobby.', icon: '👥' },
+  { n: '03', title: 'Battle', desc: 'Receive encrypted room codes at match time. Fight across Erangel, Miramar, Sanhok & more.', icon: '⚔️' },
+  { n: '04', title: 'Win Prizes', desc: 'Climb the leaderboard with real-time scoring. Winners receive prizes directly via bKash.', icon: '🏆' },
+]
 
-export function HowItWorks() {
+export default function HowItWorks() {
   return (
-    <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
-      <div className="text-center">
-        <div className="text-[11px] font-bold uppercase tracking-[0.3em] text-[var(--color-primary)]">
-          How It Works
-        </div>
-        <h2 className="mt-3 font-display text-4xl md:text-5xl font-extrabold uppercase tracking-tight">
-          From Zero to Chicken Dinner
-        </h2>
-        <p className="mt-3 max-w-xl mx-auto text-[var(--color-muted)]">
-          Three steps. No setup headaches. Just real PUBG Mobile competition.
-        </p>
-      </div>
+    <section className="section" style={{
+      background: 'linear-gradient(180deg, transparent, rgba(10,16,32,0.6), transparent)',
+      borderTop: '1px solid var(--border)',
+      borderBottom: '1px solid var(--border)',
+      position: 'relative',
+    }}>
+      <div className="dot-grid" aria-hidden />
+      <div className="container" style={{ position: 'relative', zIndex: 1 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          style={{ textAlign: 'center', marginBottom: 72 }}
+        >
+          <div className="section-eyebrow section-eyebrow-cyan" style={{ justifyContent: 'center' }}>HOW IT WORKS</div>
+          <h2 className="heading-section">
+            From Register to <span className="gradient-cyan">Champion</span>
+          </h2>
+        </motion.div>
 
-      <div className="mt-12 grid gap-6 md:grid-cols-3">
-        {steps.map((s, i) => {
-          const Icon = s.icon;
-          return (
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 32,
+          position: 'relative',
+        }}>
+          {/* Connecting line */}
+          <div aria-hidden className="how-line" style={{
+            position: 'absolute',
+            top: 48, left: '12%', right: '12%', height: 2,
+            background: 'linear-gradient(90deg, transparent, var(--gold-dim) 20%, var(--gold) 50%, var(--gold-dim) 80%, transparent)',
+            opacity: 0.4, zIndex: 0,
+          }} />
+
+          {STEPS.map((s, i) => (
             <motion.div
-              key={s.title}
-              initial={{ opacity: 0, y: 24 }}
+              key={s.n}
+              initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: i * 0.1 }}
-              className="relative rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 group hover:border-[var(--color-border-strong)] transition-colors overflow-hidden"
+              transition={{ duration: 0.5, delay: i * 0.15 }}
+              style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}
             >
-              <div
-                className={`absolute -top-20 -right-20 h-48 w-48 rounded-full bg-gradient-to-br ${s.accent} opacity-20 blur-3xl group-hover:opacity-40 transition-opacity`}
-              />
-              <div className="relative">
-                <div className="flex items-center gap-3">
-                  <span className="grid h-12 w-12 place-items-center rounded-md border border-[var(--color-border-strong)] bg-[var(--color-bg)]">
-                    <Icon className="h-6 w-6 text-[var(--color-primary)]" />
-                  </span>
-                  <div>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-[var(--color-muted)]">
-                      Step {i + 1}
-                    </div>
-                    <h3 className="font-display text-2xl font-extrabold uppercase tracking-wider">
-                      {s.title}
-                    </h3>
-                  </div>
-                </div>
-                <p className="mt-4 text-sm text-[var(--color-muted)] leading-relaxed">
-                  {s.desc}
-                </p>
-              </div>
+              <motion.div
+                whileHover={{ scale: 1.1 }}
+                className="hex-step"
+                style={{ margin: '0 auto 24px' }}
+              >
+                <span>{s.icon}</span>
+              </motion.div>
+              <div style={{
+                fontFamily: 'var(--font-heading)', fontSize: 11, fontWeight: 700,
+                color: 'var(--gold-dim)', letterSpacing: '0.2em', marginBottom: 8,
+              }}>STEP {s.n}</div>
+              <h3 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {s.title}
+              </h3>
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7 }}>{s.desc}</p>
             </motion.div>
-          );
-        })}
+          ))}
+        </div>
       </div>
+
+      <style>{`
+        @media (max-width: 900px) {
+          .how-line { display: none !important; }
+        }
+        @media (max-width: 1024px) {
+          div[style*="repeat(4, 1fr)"] {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+        }
+        @media (max-width: 600px) {
+          div[style*="repeat(4, 1fr)"] {
+            grid-template-columns: 1fr !important;
+            gap: 40px !important;
+          }
+        }
+      `}</style>
     </section>
-  );
+  )
 }
